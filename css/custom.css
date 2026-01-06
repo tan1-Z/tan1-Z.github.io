@@ -1,0 +1,25 @@
+/* Soft pastel blue theme + WenKai font */
+@font-face {
+  font-family: "LXGW WenKai";
+  src: url("/fonts/LXGWWenKai-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+
+body {
+  font-family: "LXGW WenKai", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+:root {
+  --theme-color: #7aa6ff;
+}
+
+.card-widget,
+.recent-post-item,
+#post {
+  border-radius: 18px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
+}
+
+#web_bg {
+  filter: saturate(1.05);
+}
