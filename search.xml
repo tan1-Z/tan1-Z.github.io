@@ -2,6 +2,60 @@
 <search> 
   
   
+    
+    <entry>
+      <title>Hello Hexo</title>
+      <link href="/2026/01/06/hello-hexo/"/>
+      <url>/2026/01/06/hello-hexo/</url>
+      
+        <content type="html"><![CDATA[<p>第二篇示例文章，用来让首页列表有内容。把它替换成你的真实文章即可。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 随笔 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> hexo </tag>
+            
+            <tag> butterfly </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>Hello World</title>
+      <link href="/2026/01/06/hello-world/"/>
+      <url>/2026/01/06/hello-world/</url>
+      
+        <content type="html"><![CDATA[<p>这是你的第一篇示例文章。你可以编辑或删除它，然后用自己的内容替换。</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 新建文章示例</span></span><br><span class="line">hexo new <span class="string">&quot;你的标题&quot;</span></span><br></pre></td></tr></table></figure>]]></content>
+      
+      
+      <categories>
+          
+          <category> 随笔 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> hexo </tag>
+            
+            <tag> butterfly </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
   
   
 </search>
