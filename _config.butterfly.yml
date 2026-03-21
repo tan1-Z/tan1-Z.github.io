@@ -14,8 +14,8 @@ avatar:
 index_img: /img/index_bg.jpg
 
 social:
-  fab fa-github: https://github.com/tan1-Z || GitHub
-  fas fa-envelope: mailto:peit879@gmail.com || Email
+  fab fa-github: https://github.com/tan1-Z || GitHub || "#24292e"
+  fas fa-envelope: mailto:peit879@gmail.com || Email || "#4a4a4a"
 
 aside:
   enable: true
