@@ -1,0 +1,48 @@
+menu:
+  Home: / || fas fa-home
+  Archives: /archives/ || fas fa-archive
+  Categories: /categories/ || fas fa-folder-open
+  Tags: /tags/ || fas fa-tags
+  About: /about/ || fas fa-user
+
+favicon: /img/favicon.jpg
+
+avatar:
+  img: /img/avatar.jpg
+  effect: false
+
+index_img: /img/index_bg.jpg
+
+social:
+  fab fa-github: https://github.com/your-github-username || GitHub
+  fas fa-envelope: mailto:your-email@example.com || Email
+
+aside:
+  enable: true
+  hide: false
+  button: true
+  mobile: true
+  position: right
+
+  card_author:
+    enable: true
+    content: Thanks for visiting. This blog shares my notes on research, learning, and technical projects.
+    button:
+      enable: true
+      icon: fab fa-github
+      text: My GitHub
+      link: https://github.com/your-github-username
+
+  card_announcement:
+    enable: true
+    content: Welcome to my personal blog
+
+  card_recent_post:
+    enable: true
+    limit: 5
+
+  card_categories:
+    enable: true
+
+  card_tags:
+    enable: true
