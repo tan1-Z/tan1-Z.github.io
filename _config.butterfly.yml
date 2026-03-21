@@ -14,8 +14,8 @@ avatar:
 index_img: /img/index_bg.jpg
 
 social:
-  fab fa-github: https://github.com/your-github-username || GitHub
-  fas fa-envelope: mailto:your-email@example.com || Email
+  fab fa-github: https://github.com/tan1-Z || GitHub
+  fas fa-envelope: mailto:peit879@gmail.com || Email
 
 aside:
   enable: true
