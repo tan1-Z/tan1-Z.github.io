@@ -31,7 +31,7 @@ aside:
       enable: true
       icon: fab fa-github
       text: My GitHub
-      link: https://github.com/your-github-username
+      link: https://github.com/tan1-Z
 
   card_announcement:
     enable: true
