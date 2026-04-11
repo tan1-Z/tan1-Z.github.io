@@ -1,5 +1,6 @@
 menu:
   Home: / || fas fa-home
+  Academic: /academic/ || fas fa-user-graduate
   Archives: /archives/ || fas fa-archive
   Categories: /categories/ || fas fa-folder-open
   Tags: /tags/ || fas fa-tags
