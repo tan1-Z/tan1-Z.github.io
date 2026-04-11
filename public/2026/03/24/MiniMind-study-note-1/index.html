@@ -1,0 +1,191 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>MiniMind study note 1 | tan1's Blog</title><meta name="author" content="Pei Tan"><meta name="copyright" content="Pei Tan"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="这一部分主要还是对Minimind的每个模块的一些学习，涉及的相关代码在model_minimind. MoE感觉MoE学起来比较恶心的地方就是它代码里面各种维度的变换…MoE执行流程：    每个token用MoEGate打分后返回选择的top_k个专家 每个token只输入给它选择的这k个专家 每个专家的输出加权求和，返回输出的结果  FFN12345678910111213141516171">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MiniMind study note 1">
+<meta property="og:url" content="http://example.com/2026/03/24/MiniMind-study-note-1/index.html">
+<meta property="og:site_name" content="tan1&#39;s Blog">
+<meta property="og:description" content="这一部分主要还是对Minimind的每个模块的一些学习，涉及的相关代码在model_minimind. MoE感觉MoE学起来比较恶心的地方就是它代码里面各种维度的变换…MoE执行流程：    每个token用MoEGate打分后返回选择的top_k个专家 每个token只输入给它选择的这k个专家 每个专家的输出加权求和，返回输出的结果  FFN12345678910111213141516171">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/img/avatar.jpg">
+<meta property="article:published_time" content="2026-03-23T16:00:16.000Z">
+<meta property="article:modified_time" content="2026-03-23T17:47:20.519Z">
+<meta property="article:author" content="Pei Tan">
+<meta property="article:tag" content="Blog">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/img/avatar.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "MiniMind study note 1",
+  "url": "http://example.com/2026/03/24/MiniMind-study-note-1/",
+  "image": "http://example.com/img/avatar.jpg",
+  "datePublished": "2026-03-23T16:00:16.000Z",
+  "dateModified": "2026-03-23T17:47:20.519Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "Pei Tan",
+      "url": "http://example.com"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.jpg"><link rel="canonical" href="http://example.com/2026/03/24/MiniMind-study-note-1/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'MiniMind study note 1',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><meta name="generator" content="Hexo 7.3.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">2</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">1</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/academic/"><i class="fa-fw fas fa-user-graduate"></i><span> Academic</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> About</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">tan1's Blog</span></a><a class="nav-page-title" href="/"><span class="site-name">MiniMind study note 1</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/academic/"><i class="fa-fw fas fa-user-graduate"></i><span> Academic</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> About</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">MiniMind study note 1</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-03-23T16:00:16.000Z" title="发表于 2026-03-24 00:00:16">2026-03-24</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-03-23T17:47:20.519Z" title="更新于 2026-03-24 01:47:20">2026-03-24</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Study-Note/">Study Note</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><p>这一部分主要还是对Minimind的每个模块的一些学习，涉及的相关代码在<a target="_blank" rel="noopener" href="https://github.com/jingyaogong/minimind/blob/master/model/model_minimind.py">model_minimind</a>.</p>
+<h1 id="MoE"><a href="#MoE" class="headerlink" title="MoE"></a>MoE</h1><p>感觉MoE学起来比较恶心的地方就是它代码里面各种<strong>维度的变换</strong>…<br>MoE执行流程：  </p>
+<ol>
+<li>每个token用<code>MoEGate</code>打分后返回选择的top_k个专家</li>
+<li>每个token只输入给它选择的这k个专家</li>
+<li>每个专家的输出加权求和，返回输出的结果</li>
+</ol>
+<h2 id="FFN"><a href="#FFN" class="headerlink" title="FFN"></a>FFN</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">FeedForward</span>(nn.Module):</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, </span></span><br><span class="line"><span class="params">                 hidden_size: <span class="built_in">int</span>,</span></span><br><span class="line"><span class="params">                 intermediate_size: <span class="built_in">int</span>=<span class="literal">None</span>,</span></span><br><span class="line"><span class="params">                 dropout: <span class="built_in">float</span>=<span class="number">0.1</span>,</span></span><br><span class="line"><span class="params">                 hidden_act=<span class="string">&#x27;gelu&#x27;</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        <span class="keyword">if</span> intermediate_size <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">            intermediate_size = <span class="built_in">int</span>(hidden_size * <span class="number">8</span> / <span class="number">3</span>)</span><br><span class="line">            intermediate_size = <span class="number">64</span> * ((intermediate_size + <span class="number">64</span> -<span class="number">1</span>) // <span class="number">64</span>)</span><br><span class="line">        <span class="variable language_">self</span>.gate_proj = nn.Linear(hidden_size, intermediate_size, bias=<span class="literal">False</span>)</span><br><span class="line">        <span class="variable language_">self</span>.down_proj = nn.Linear(intermediate_size, hidden_size, bias=<span class="literal">False</span>)</span><br><span class="line">        <span class="variable language_">self</span>.up_proj = nn.Linear(hidden_size, intermediate_size, bias=<span class="literal">False</span>)</span><br><span class="line">        <span class="variable language_">self</span>.dropout = nn.Dropout(dropout)</span><br><span class="line">        <span class="variable language_">self</span>.act_fn = ACT2FN[hidden_act]</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, x</span>):</span><br><span class="line">        <span class="keyword">return</span> <span class="variable language_">self</span>.dropout(</span><br><span class="line">            <span class="variable language_">self</span>.down_proj(<span class="variable language_">self</span>.act_fn(<span class="variable language_">self</span>.gate_proj(x)) * <span class="variable language_">self</span>.up_proj(x))</span><br><span class="line">        )</span><br></pre></td></tr></table></figure>
+<p>这部分还是相对容易理解一些，<code>gate_proj</code>和<code>up_proj</code>作为双分支融合之后再过一遍  <code>down_proj</code><br>和串行的传统FFN比起来表达能力要强一些</p>
+<h2 id="MoE-FFN"><a href="#MoE-FFN" class="headerlink" title="MoE FFN"></a>MoE FFN</h2><p><img src="/source/img/model.png" alt="model structure"></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">MoEFeedForward</span>(nn.Module):</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self,</span></span><br><span class="line"><span class="params">                 hidden_size: <span class="built_in">int</span>,</span></span><br><span class="line"><span class="params">                 n_routed_experts: <span class="built_in">int</span>,</span></span><br><span class="line"><span class="params">                 n_shared_experts: <span class="built_in">int</span>,</span></span><br><span class="line"><span class="params">                 n_experts_per_tok: <span class="built_in">int</span>,</span></span><br><span class="line"><span class="params">                 intermediate_size: <span class="built_in">int</span>=<span class="literal">None</span>,</span></span><br><span class="line"><span class="params">                 dropout: <span class="built_in">float</span>=<span class="number">0.1</span>,</span></span><br><span class="line"><span class="params">                 hidden_act=<span class="string">&#x27;gelu&#x27;</span></span>):</span><br><span class="line">        <span class="built_in">super</span>().__init__()</span><br><span class="line">        <span class="variable language_">self</span>.experts = nn.ModuleList(</span><br><span class="line">            FeedForward(hidden_size, intermediate_size, dropout, hidden_act)</span><br><span class="line">            <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(n_routed_experts)</span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">        <span class="variable language_">self</span>.gate = MoEGate(</span><br><span class="line">            n_expert_per_tok=n_experts_per_tok,</span><br><span class="line">            n_routed_experts=n_routed_experts,</span><br><span class="line">            scoring_func=<span class="string">&#x27;softmax&#x27;</span>,</span><br><span class="line">            aux_loss_alpha=<span class="number">0.01</span>,</span><br><span class="line">            seq_aux=<span class="literal">False</span>,</span><br><span class="line">            norm_topk_prob=<span class="literal">True</span>,</span><br><span class="line">            hidden_size=hidden_size</span><br><span class="line">        )</span><br><span class="line">        <span class="keyword">if</span> n_shared_experts &gt; <span class="number">0</span>:</span><br><span class="line">            <span class="variable language_">self</span>.shared_experts = nn.ModuleList(</span><br><span class="line">                FeedForward(hidden_size, intermediate_size, dropout, hidden_act)</span><br><span class="line">                <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(n_shared_experts)</span><br><span class="line">            )</span><br><span class="line"></span><br><span class="line">        <span class="variable language_">self</span>.n_experts_per_tok = n_experts_per_tok</span><br><span class="line">        <span class="variable language_">self</span>.n_shared_experts = n_shared_experts</span><br></pre></td></tr></table></figure>
+<p>相关参数解释：  </p>
+<ol>
+<li><code>n_routed_experts</code>: 独立处理一些token的专家</li>
+<li><code>n_shared_experts</code>: 共享专家，顾名思义，每个token都得走一遍</li>
+<li><code>n_experts_per_tok</code>: 其实就是top_k，不知道为啥原码会另起一个这么奇怪的名字. 每个token选择前k个专家<br>tips：<code>MoEGate</code>会在下一个部分拆解</li>
+</ol>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">forward</span>(<span class="params">self, x</span>):</span><br><span class="line">    <span class="comment"># x [bs, seq_len, hidden_size]</span></span><br><span class="line">    identity = x</span><br><span class="line">    orig_shape = x.shape</span><br><span class="line">    bs, seq_len, _ = x.shape</span><br><span class="line">    topk_idx, topk_weight, aus_loss = <span class="variable language_">self</span>.gate(x)</span><br><span class="line">    <span class="comment"># topk_idx, topk_weight: [bs * seq_len, topk]</span></span><br><span class="line">    x = x.view(-<span class="number">1</span>, x.shape[-<span class="number">1</span>])</span><br><span class="line">    flat_topk_idx = topk_idx.view(-<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.training:</span><br><span class="line">        x = x.repeat_interleave(<span class="variable language_">self</span>.n_experts_per_tok, dim=<span class="number">0</span>)</span><br><span class="line">        <span class="comment"># x [(bs * seq_len) * topk, hidden_size]</span></span><br><span class="line">        y = torch.empty_like(x, dtype=torch.float16)</span><br><span class="line">        <span class="keyword">for</span> i, expert <span class="keyword">in</span> <span class="built_in">enumerate</span>(<span class="variable language_">self</span>.experts):</span><br><span class="line">            mask = (flat_topk_idx == i)</span><br><span class="line">            x_i = x[mask]   <span class="comment"># [num_token_i, hidden_size]</span></span><br><span class="line">            <span class="keyword">if</span> x_i.shape[<span class="number">0</span>] &gt; <span class="number">0</span>:</span><br><span class="line">                y[mask] = expert(x_i).to(y.dtype)</span><br><span class="line"></span><br><span class="line">        y = y.view(*topk_weight.shape, -<span class="number">1</span>) <span class="comment"># [bs * seq_len, topk, hidden_size]</span></span><br><span class="line">        y = (y * topk_weight.unsqueeze(-<span class="number">1</span>)).<span class="built_in">sum</span>(dim=<span class="number">1</span>)</span><br><span class="line">        <span class="comment"># y [bs * seq_len, hidden_size]</span></span><br><span class="line">        y = y.view(*orig_shape) <span class="comment"># [bs, seq_len, hidden_size]</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        topk_weight = topk_weight.view(-<span class="number">1</span>, <span class="number">1</span>) <span class="comment"># [bs * seq_len, topk] -&gt; [bs * seq_len * topk, 1]</span></span><br><span class="line">        y = <span class="variable language_">self</span>.moe_infer(x, flat_topk_idx, topk_weight)</span><br><span class="line">        y = y.view(*orig_shape)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> <span class="variable language_">self</span>.n_shared_experts &gt; <span class="number">0</span>:</span><br><span class="line">        <span class="keyword">for</span> expert <span class="keyword">in</span> <span class="variable language_">self</span>.shared_experts:</span><br><span class="line">            y = y + expert(identity)</span><br><span class="line">    </span><br><span class="line">    <span class="variable language_">self</span>.aux_loss = aus_loss</span><br><span class="line">    <span class="keyword">return</span> y</span><br></pre></td></tr></table></figure>
+<p>下面是我在学了一遍代码之后回过头来看还有些疑惑的地方<br><code>flat_topk_idx = topk_idx.view(-1)</code> 为什么要把<code>topk_idx</code> 展平？<br><code>topk_idx, topk_weight, aus_loss = self.gate(x)</code><br> 从这里可以看到MoEGate得到的topk_idx的shape是[bs * seq_len, topk]:</p>
+<ul>
+<li>有bs * seq_len个token</li>
+<li>每个token会被route到k个专家</li>
+<li>topk_idx[t,k]表示第t个token对应的第k个专家的编号<br>但后续在训练时进行了一个repeat的操作：<code>x = x.repeat_interleave(self.n_experts_per_tok, dim=0)</code>，导致x的shape变成[bs * seq_len * top_k, hidden_size]<br>现在每一行的x对应的都是一个<strong>token-expert pair</strong>，所以要让top_idx的shape跟它对齐，毕竟它是作为route索引在的<br>e.g.:<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">x = [token0, token1, token2]</span><br><span class="line">topk_idx =</span><br><span class="line">[</span><br><span class="line">  [1, 3],</span><br><span class="line">  [0, 2],</span><br><span class="line">  [3, 1]</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+repeat之后：<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">x =</span><br><span class="line">[</span><br><span class="line">  token0,</span><br><span class="line">  token0,</span><br><span class="line">  token1,</span><br><span class="line">  token1,</span><br><span class="line">  token2,</span><br><span class="line">  token2</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+这时候你希望每一行对应的 expert 编号也变成：</li>
+</ul>
+<p><code>flat_topk_idx =[1, 3, 0, 2, 3, 1]</code></p>
+<p>这样：</p>
+<p>第 0 行 token0 -&gt; expert1<br>第 1 行 token0 -&gt; expert3<br>第 2 行 token1 -&gt; expert0<br>第 3 行 token1 -&gt; expert2<br>第 4 行 token2 -&gt; expert3<br>第 5 行 token2 -&gt; expert1<br>就对齐了</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@torch.no_grad()</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">moe_infer</span>(<span class="params">self, x, flat_expert_indices, flat_expert_weights</span>):</span><br><span class="line">    <span class="comment"># x [bs * seq_len, hidden_size]</span></span><br><span class="line">    <span class="comment"># flat_expert_indices [bs * seq_len * topk]</span></span><br><span class="line">    <span class="comment"># flat_expert_weights [bs * seq_len * topk, 1]</span></span><br><span class="line">    expert_cache = torch.zeros_like(x)</span><br><span class="line"></span><br><span class="line">    idxs = flat_expert_indices.argsort()</span><br><span class="line">    tokens_pre_expert = flat_expert_indices.bincount().cpu().numpy().cumsum(<span class="number">0</span>)</span><br><span class="line">    token_idxs = idxs // <span class="variable language_">self</span>.n_experts_per_tok</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> i, end_idx <span class="keyword">in</span> <span class="built_in">enumerate</span>(tokens_pre_expert):</span><br><span class="line">        start_idx = <span class="number">0</span> <span class="keyword">if</span> i == <span class="number">0</span> <span class="keyword">else</span> tokens_pre_expert[i - <span class="number">1</span>]</span><br><span class="line">        <span class="keyword">if</span> start_idx == end_idx:</span><br><span class="line">            <span class="keyword">continue</span></span><br><span class="line">        expert = <span class="variable language_">self</span>.experts[i]</span><br><span class="line">        exp_token_idx = token_idxs[start_idx: end_idx]</span><br><span class="line">        expert_tokens = x[exp_token_idx]</span><br><span class="line">        expert_out = expert(expert_tokens).to(expert_cache.dtype) <span class="comment"># [num_token_i, hidden_size]</span></span><br><span class="line">        expert_out.mul_(flat_expert_weights[idxs[start_idx: end_idx]])</span><br><span class="line">        <span class="comment"># weights_i = flat_expert_weights[idxs[start_idx:end_idx]]</span></span><br><span class="line">        <span class="comment"># expert_out = expert_out * weights_i</span></span><br><span class="line"></span><br><span class="line">        expert_cache.scatter_add_(</span><br><span class="line">            dim=<span class="number">0</span>,</span><br><span class="line">            <span class="comment"># [num_token_i] --&gt;  [num_token_i, 1] --&gt; [num_token_i, hidden_size]</span></span><br><span class="line">            index=exp_token_idx.view(-<span class="number">1</span>, <span class="number">1</span>).repeat(<span class="number">1</span>, x.shape[-<span class="number">1</span>]), </span><br><span class="line">            <span class="comment"># [num_token_i, hidden_size]</span></span><br><span class="line">            src=expert_out </span><br><span class="line">        )</span><br><span class="line">    <span class="keyword">return</span> expert_cache</span><br></pre></td></tr></table></figure></article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="http://example.com">Pei Tan</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="http://example.com/2026/03/24/MiniMind-study-note-1/">http://example.com/2026/03/24/MiniMind-study-note-1/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="http://example.com" target="_blank">tan1's Blog</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Blog/">Blog</a></div><div class="post-share"><div class="social-share" data-image="/img/avatar.jpg" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/2026/03/22/my-first-Blog/" title="my first Blog"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">my first Blog</div></div><div class="info-2"><div class="info-item-1">This is the first blog post I am writing after setting up this site.From now on, I will use this space to document my learning, projects, and reflections. </div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/03/22/my-first-Blog/" title="my first Blog"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-03-22</div><div class="info-item-2">my first Blog</div></div><div class="info-2"><div class="info-item-1">This is the first blog post I am writing after setting up this site.From now on, I will use this space to document my learning, projects, and reflections. </div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/avatar.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">Pei Tan</div><div class="author-info-description">Notes on learning, research, and daily life</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">2</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">1</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/tan1-Z"><i class="fab fa-github"></i><span>My GitHub</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/tan1-Z" target="_blank" title="GitHub"><i class="fab fa-github" style="color: #24292e;"></i></a><a class="social-icon" href="mailto:peit879@gmail.com" target="_blank" title="Email"><i class="fas fa-envelope" style="color: #4a4a4a;"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">Welcome to my personal blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#MoE"><span class="toc-number">1.</span> <span class="toc-text">MoE</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#FFN"><span class="toc-number">1.1.</span> <span class="toc-text">FFN</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#MoE-FFN"><span class="toc-number">1.2.</span> <span class="toc-text">MoE FFN</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/03/24/MiniMind-study-note-1/" title="MiniMind study note 1">MiniMind study note 1</a><time datetime="2026-03-23T16:00:16.000Z" title="发表于 2026-03-24 00:00:16">2026-03-24</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/03/22/my-first-Blog/" title="my first Blog">my first Blog</a><time datetime="2026-03-21T16:24:58.000Z" title="发表于 2026-03-22 00:24:58">2026-03-22</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By Pei Tan</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 7.3.0</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.4</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
