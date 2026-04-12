@@ -31,8 +31,8 @@ comments: false
 <div class="academic-layout">
 <aside class="academic-left">
 <section class="academic-card profile-card">
-<img class="profile-avatar" src="/img/academic/avatar.jpg" alt="Tan Pei">
-<h1 class="profile-name">Tan Pei</h1>
+<img class="profile-avatar" src="/img/academic/avatar.jpg" alt="Pei Tan">
+<h1 class="profile-name">Pei Tan</h1>
 <p class="profile-role">Undergraduate Student</p>
 <p class="profile-school">School of Information and Software Engineering, UESTC</p>
 
@@ -71,7 +71,7 @@ comments: false
 <section class="academic-card about-card">
 <h2>About Me</h2>
 <p>
-Hello! I am Tan Pei, an undergraduate student from the School of Information and Software Engineering at UESTC.
+Hello! I am Pei Tan (tan1), an undergraduate student from the School of Information and Software Engineering at UESTC.
 My current interests include 3D vision, point cloud completion, and hypergraph learning.
 </p>
 <p>
