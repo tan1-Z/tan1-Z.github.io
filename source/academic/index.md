@@ -51,9 +51,9 @@ comments: false
 
 <div class="game-panel active" id="slot-panel">
 <div class="slot-machine">
-<div class="slot-reel" id="slot-1">🐸</div>
-<div class="slot-reel" id="slot-2">📚</div>
-<div class="slot-reel" id="slot-3">💻</div>
+<div class="slot-reel" id="slot-1"></div>
+<div class="slot-reel" id="slot-2"></div>
+<div class="slot-reel" id="slot-3"></div>
 </div>
 <button class="game-btn" id="spin-btn">开始抽奖</button>
 <p class="game-result" id="slot-result">试试看今天的科研运势。</p>

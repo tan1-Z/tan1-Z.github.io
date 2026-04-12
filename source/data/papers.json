@@ -3,9 +3,9 @@
     "title": "Hyper-PCN: Hypergraph-Based Point Cloud Completion via High-Order Correlation Modeling",
     "authors": "Linfei Li, Pei Tan, Siqi Li, Changqing Zou, and Yue Gao",
     "venue": "CVPR 2026",
-    "tags": ["3D Vision", "Point Cloud", "Completion"],
+    "tags": ["3D Vision", "Point Cloud Completion"],
     "image": "/img/papers/hyper-pcn.jpg",
-    "summary": "A hypergraph-based framework for point cloud completion that models higher-order geometric correlations and improves structural reasoning for incomplete point clouds.",
+    "summary": "A hypergraph-based framework for point cloud completion that captures higher-order geometric correlations.",
     "badge": "CVPR 2026",
     "links": {
       "paper": "https://rinfly.com/assets/pdf/hyper-pcn.pdf",

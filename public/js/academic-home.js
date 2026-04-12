@@ -26,16 +26,40 @@ function initGameTabs() {
 }
 
 function initSlotMachine() {
-  const items = ["🐸", "📚", "💻", "🧠", "✨", "☕", "🔥", "🎯"];
+  const items = [
+    "/img/game-icons/lulu-1.jpg",
+    "/img/game-icons/lulu-2.jpg",
+    "/img/game-icons/lulu-3.jpg",
+    "/img/game-icons/lulu-4.jpg",
+    "/img/game-icons/lulu-5.jpg",
+    "/img/game-icons/lulu-6.jpg",
+    "/img/game-icons/lulu-7.jpg",
+    "/img/game-icons/lulu-8.jpg"
+  ];
+
   const reels = [
     document.getElementById("slot-1"),
     document.getElementById("slot-2"),
     document.getElementById("slot-3")
   ];
+
   const spinBtn = document.getElementById("spin-btn");
   const result = document.getElementById("slot-result");
 
-  if (!spinBtn || reels.some(r => !r) || !result) return;
+  if (!spinBtn || reels.includes(null) || !result) return;
+
+  function getRandomItem() {
+    return items[Math.floor(Math.random() * items.length)];
+  }
+
+  function renderItem(reel, item) {
+    reel.innerHTML = `<img src="${item}" class="game-icon-img" alt="">`;
+  }
+
+  // 页面一加载就随机显示 3 个图标
+  reels.forEach(reel => {
+    renderItem(reel, getRandomItem());
+  });
 
   spinBtn.addEventListener("click", () => {
     spinBtn.disabled = true;
@@ -47,13 +71,14 @@ function initSlotMachine() {
       let count = 0;
 
       const timer = setInterval(() => {
-        reel.textContent = items[Math.floor(Math.random() * items.length)];
+        renderItem(reel, getRandomItem());
         count++;
 
         if (count > 15 + index * 6) {
           clearInterval(timer);
-          const finalItem = items[Math.floor(Math.random() * items.length)];
-          reel.textContent = finalItem;
+
+          const finalItem = getRandomItem();
+          renderItem(reel, finalItem);
           finalValues[index] = finalItem;
 
           if (finalValues.filter(Boolean).length === 3) {
@@ -82,10 +107,21 @@ function initMatchGame() {
 
   if (!grid || !resetBtn || !result) return;
 
-  const icons = ["🐸", "📘", "💻", "🧠", "🎓", "⭐", "📄", "☕"];
-  let values = [];
-  let selected = [];
-  let clearedCount = 0;
+  const icons = [
+    "/img/game-icons/lulu-1.jpg",
+    "/img/game-icons/lulu-2.jpg",
+    "/img/game-icons/lulu-3.jpg",
+    "/img/game-icons/lulu-4.jpg",
+    "/img/game-icons/lulu-5.jpg",
+    "/img/game-icons/lulu-6.jpg",
+    "/img/game-icons/lulu-7.jpg",
+    "/img/game-icons/lulu-8.jpg"
+  ];
+
+  let firstCard = null;
+  let secondCard = null;
+  let lockBoard = false;
+  let matchedCount = 0;
 
   function shuffle(arr) {
     return [...arr].sort(() => Math.random() - 0.5);
@@ -93,60 +129,83 @@ function initMatchGame() {
 
   function startGame() {
     const pairs = shuffle([...icons, ...icons]);
-    values = pairs;
-    selected = [];
-    clearedCount = 0;
+
+    firstCard = null;
+    secondCard = null;
+    lockBoard = false;
+    matchedCount = 0;
     grid.innerHTML = "";
 
-    values.forEach((icon, idx) => {
+    pairs.forEach((icon, idx) => {
       const cell = document.createElement("div");
       cell.className = "match-cell";
       cell.dataset.index = idx;
       cell.dataset.value = icon;
-      cell.textContent = icon;
 
-      cell.addEventListener("click", () => handleCellClick(cell));
+      cell.innerHTML = `
+        <div class="match-card-inner">
+          <div class="match-card-face match-card-front">
+            <div class="match-card-front-mark"></div>
+          </div>
+          <div class="match-card-face match-card-back">
+            <img src="${icon}" class="match-icon-img" alt="">
+          </div>
+        </div>
+      `;
+
+      cell.addEventListener("click", () => handleCardClick(cell));
       grid.appendChild(cell);
     });
 
-    result.textContent = "找出所有相同图案并配对消除。";
+    result.textContent = "一次翻两张，相同就消除，不同会翻回去。";
   }
 
-  function handleCellClick(cell) {
-    if (cell.classList.contains("cleared")) return;
-    if (selected.includes(cell)) return;
-    if (selected.length >= 2) return;
+  function handleCardClick(cell) {
+    if (lockBoard) return;
+    if (cell.classList.contains("flipped")) return;
+    if (cell.classList.contains("matched")) return;
 
-    cell.classList.add("selected");
-    selected.push(cell);
+    cell.classList.add("flipped");
 
-    if (selected.length === 2) {
-      const [a, b] = selected;
-
-      if (a.dataset.value === b.dataset.value) {
-        setTimeout(() => {
-          a.classList.remove("selected");
-          b.classList.remove("selected");
-          a.classList.add("cleared");
-          b.classList.add("cleared");
-          selected = [];
-          clearedCount += 2;
-
-          if (clearedCount === values.length) {
-            result.textContent = "全部消除完成！今天也要继续推进科研。";
-          } else {
-            result.textContent = "配对成功，继续加油。";
-          }
-        }, 220);
-      } else {
-        setTimeout(() => {
-          a.classList.remove("selected");
-          b.classList.remove("selected");
-          selected = [];
-          result.textContent = "这两个不一样，再试一次。";
-        }, 320);
-      }
+    if (!firstCard) {
+      firstCard = cell;
+      return;
     }
+
+    secondCard = cell;
+    lockBoard = true;
+
+    const isMatch = firstCard.dataset.value === secondCard.dataset.value;
+
+    if (isMatch) {
+      setTimeout(() => {
+        firstCard.classList.add("matched");
+        secondCard.classList.add("matched");
+
+        matchedCount += 2;
+
+        if (matchedCount === icons.length * 2) {
+          result.textContent = "全部配对完成！今天也要继续推进科研。";
+        } else {
+          result.textContent = "配对成功，继续加油。";
+        }
+
+        resetBoard();
+      }, 350);
+    } else {
+      setTimeout(() => {
+        firstCard.classList.remove("flipped");
+        secondCard.classList.remove("flipped");
+        result.textContent = "这两个不一样，再试一次。";
+        resetBoard();
+      }, 800);
+    }
+  }
+
+  function resetBoard() {
+    firstCard = null;
+    secondCard = null;
+    lockBoard = false;
   }
 
   resetBtn.addEventListener("click", startGame);
