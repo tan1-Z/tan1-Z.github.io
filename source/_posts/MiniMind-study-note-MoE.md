@@ -38,48 +38,32 @@ class FeedForward(nn.Module):
         )
 ```
 这部分还是相对容易理解一些，``gate_proj``和``up_proj``作为双分支融合之后再过一遍  ``down_proj``  
-和串行的传统FFN比起来表达能力要强一些
+和串行的传统FFN比起来表达能力要强一些  
+注：``64 * ((intermediate_size + 64 -1) // 64)``为把``intermediate_size``向上取整到最接近的 64 的倍数
 
 ## MoE FFN
 ![model structure](/img/model.png)
 ```python
 class MoEFeedForward(nn.Module):
-    def __init__(self,
-                 hidden_size: int,
-                 n_routed_experts: int,
-                 n_shared_experts: int,
-                 n_experts_per_tok: int,
-                 intermediate_size: int=None,
-                 dropout: float=0.1,
-                 hidden_act='gelu'):
+    def __init__(self, config):
         super().__init__()
         self.experts = nn.ModuleList(
-            FeedForward(hidden_size, intermediate_size, dropout, hidden_act)
-            for _ in range(n_routed_experts)
+            FeedForward(config)
+            for _ in range(config.n_routed_experts)
         )
 
-        self.gate = MoEGate(
-            n_expert_per_tok=n_experts_per_tok,
-            n_routed_experts=n_routed_experts,
-            scoring_func='softmax',
-            aux_loss_alpha=0.01,
-            seq_aux=False,
-            norm_topk_prob=True,
-            hidden_size=hidden_size
-        )
-        if n_shared_experts > 0:
+        self.gate = MoEGate(config)
+        if config.n_shared_experts > 0:
             self.shared_experts = nn.ModuleList(
-                FeedForward(hidden_size, intermediate_size, dropout, hidden_act)
-                for _ in range(n_shared_experts)
+                FeedForward(config)
+                for _ in range(config.n_shared_experts)
             )
-
-        self.n_experts_per_tok = n_experts_per_tok
-        self.n_shared_experts = n_shared_experts
+        self.config = config
 ```
 相关参数解释：  
 1. ``n_routed_experts``: 独立处理一些token的专家
 2. ``n_shared_experts``: 共享专家，顾名思义，每个token都得走一遍
-3. ``n_experts_per_tok``: 其实就是top_k，不知道为啥原码会另起一个这么奇怪的名字. 每个token选择前k个专家  
+3. ``n_expert_per_tok``: 其实就是top_k，不知道为啥原码会另起一个这么奇怪的名字. 每个token选择前k个专家  
 tips：``MoEGate``会在下一个部分拆解
 
 ```python
@@ -90,13 +74,13 @@ tips：``MoEGate``会在下一个部分拆解
         bs, seq_len, _ = x.shape
         topk_idx, topk_weight, aus_loss = self.gate(x)
         # topk_idx, topk_weight: [bs * seq_len, topk]
-        x = x.view(-1, x.shape[-1])
+        x = x.reshape(-1, x.shape[-1])
         flat_topk_idx = topk_idx.view(-1)
 
         if self.training:
-            x = x.repeat_interleave(self.n_experts_per_tok, dim=0)
+            x = x.repeat_interleave(self.config.n_expert_per_tok, dim=0)
             # x [(bs * seq_len) * topk, hidden_size]
-            y = torch.empty_like(x, dtype=torch.float16)
+            y = torch.empty_like(x, dtype=x.dtype)
             for i, expert in enumerate(self.experts):
                 mask = (flat_topk_idx == i)
                 x_i = x[mask]   # [num_token_i, hidden_size]
@@ -113,7 +97,7 @@ tips：``MoEGate``会在下一个部分拆解
             y = self.moe_infer(x, flat_topk_idx, topk_weight)
             y = y.view(*orig_shape)
 
-        if self.n_shared_experts > 0:
+        if self.config.n_shared_experts > 0:
             for expert in self.shared_experts:
                 y = y + expert(identity)
         
@@ -127,7 +111,7 @@ tips：``MoEGate``会在下一个部分拆解
 - 有bs * seq_len个token
 - 每个token会被route到k个专家
 - topk_idx[t,k]表示第t个token对应的第k个专家的编号  
-但后续在训练时进行了一个repeat的操作：``x = x.repeat_interleave(self.n_experts_per_tok, dim=0)``，导致x的shape变成[bs * seq_len * top_k, hidden_size]     
+但后续在训练时进行了一个repeat的操作：``x = x.repeat_interleave(self.config.n_expert_per_tok, dim=0)``，导致x的shape变成[bs * seq_len * top_k, hidden_size]     
 现在每一行的x对应的都是一个**token-expert pair**，所以要让top_idx的shape跟它对齐，毕竟它是作为route索引在的  
 e.g.:
 ```
@@ -139,6 +123,7 @@ topk_idx =
   [3, 1]
 ]
 ```
+这里topk_idx的含义是第0个token被路由给专家1,3；第1个token被路由给专家0,2...  
 repeat之后：
 ```
 x =
@@ -175,7 +160,7 @@ x =
 
         idxs = flat_expert_indices.argsort()
         tokens_pre_expert = flat_expert_indices.bincount().cpu().numpy().cumsum(0)
-        token_idxs = idxs // self.n_experts_per_tok
+        token_idxs = idxs // self.config.n_expert_per_tok
 
         for i, end_idx in enumerate(tokens_pre_expert):
             start_idx = 0 if i == 0 else tokens_pre_expert[i - 1]
