@@ -6,7 +6,7 @@ tags:
 categories:
   - Study Note
   - Attention
-mathjax: true
+katex: true
 ---
 
 # Attention
@@ -42,9 +42,44 @@ $$
 ``pe``就是位置编码矩阵，偶数用sin，奇数cos  
 
 ### RoPE 
-对于某个位置 $m$ 和某一对维度 $(2i, 2i+1)$，定义旋转角度为： $$ \theta_{m,i} = m \cdot \omega_i $$ 其中： $$ \omega_i = \frac{1}{\text{base}^{2i/d}} $$ 然后把这一对维度 $$ (x_{2i}, x_{2i+1}) $$ 看作二维向量，做旋转： $$ \begin{bmatrix} x'_{2i} \\ x'_{2i+1} \end{bmatrix} = \begin{bmatrix} \cos \theta_{m,i} & -\sin \theta_{m,i} \\ \sin \theta_{m,i} & \cos \theta_{m,i} \end{bmatrix} \begin{bmatrix} x_{2i} \\ x_{2i+1} \end{bmatrix} $$
+对于某个位置 $m$ 和某一对维度 $(2i, 2i+1)$，定义旋转角度为：
 
-这就是 RoPE 的本质
+$$
+\theta_{m,i} = m \cdot \omega_i
+$$
+
+其中：
+
+$$
+\omega_i = \frac{1}{\text{base}^{2i/d}}
+$$
+
+然后把这一对维度 $(x_{2i}, x_{2i+1})$
+
+看作二维向量，并施加旋转变换：
+
+$$
+R(\theta_{m,i}) =
+\begin{bmatrix}
+\cos \theta_{m,i} & -\sin \theta_{m,i} \\
+\sin \theta_{m,i} & \cos \theta_{m,i}
+\end{bmatrix}
+$$
+
+$$
+\begin{bmatrix}
+x'_{2i} \\
+x'_{2i+1}
+\end{bmatrix}
+=
+R(\theta_{m,i})
+\begin{bmatrix}
+x_{2i} \\
+x_{2i+1}
+\end{bmatrix}
+$$
+
+这就是 RoPE 的本质（引自GPT
 
 ```python
 def precompute_freqs_cis(d_model: int, end: int=(32 * 1024), omiga: int=1e6):

@@ -47,3 +47,11 @@ aside:
 
   card_tags:
     enable: true
+
+math:
+  use: katex
+  per_page: false
+  hide_scrollbar: false
+
+katex:
+  copy_tex: false
