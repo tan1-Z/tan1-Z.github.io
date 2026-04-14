@@ -314,4 +314,4 @@ $$
 0 & 0 & 0 & 0 & 0
 \end{bmatrix}
 $$
-$-\infty$表示第4个query看不见第五个k/v
+$-\infty$表示第4个query看不见第五个k/v，合理

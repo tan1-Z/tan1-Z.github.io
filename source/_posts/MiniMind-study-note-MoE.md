@@ -1,5 +1,5 @@
 ---
-title: MiniMind study note 1
+title: MiniMind MoE
 date: 2026-03-24 00:00:16
 tags: 
     - Blog
@@ -41,7 +41,7 @@ class FeedForward(nn.Module):
 和串行的传统FFN比起来表达能力要强一些
 
 ## MoE FFN
-![model structure](/source/img/model.png)
+![model structure](/img/model.png)
 ```python
 class MoEFeedForward(nn.Module):
     def __init__(self,
