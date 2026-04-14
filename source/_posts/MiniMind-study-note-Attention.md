@@ -161,3 +161,157 @@ $$
 
 的来源  
 上面这段原理也引自GPT，注意一下维度的变换即可
+
+## Attention
+
+```python
+def repeat_kv(x: torch.Tensor, n_rep: int) -> torch.Tensor:
+    bs, seq_len, n_kv_head, head_dim = x.shape
+    if n_rep == 1:
+        return x
+    return (x[:, :, :, None, :]
+            .expand(bs, seq_len, n_kv_head, n_rep, head_dim)
+            .reshape(bs, seq_len, n_kv_head * n_rep, head_dim))
+```
+一个简单的工具函数，用于复制kv_heads的数量来保证和query一致
+
+```python
+class Attention(nn.Module):
+    def __init__(self,
+                 num_attention_heads: int,
+                 num_key_value_heads: Optional[int],
+                 hidden_size: int,
+                 dropout: float,
+                 flash_attn: bool):
+        super().__init__()
+        self.num_key_value_heads = num_attention_heads if num_key_value_heads is None else num_key_value_heads
+        assert num_attention_heads % self.num_key_value_heads == 0
+
+        self.n_local_heads = num_attention_heads
+        self.n_local_kv_heads = self.num_key_value_heads
+        self.n_rep = self.n_local_heads // self.n_local_kv_heads
+
+        assert hidden_size % num_attention_heads == 0
+        self.head_dim = hidden_size // num_attention_heads
+        self.q_proj = nn.Linear(hidden_size, self.head_dim * num_attention_heads, bias=False)
+        self.k_proj = nn.Linear(hidden_size, self.head_dim * self.n_local_kv_heads, bias=False)
+        self.v_proj = nn.Linear(hidden_size, self.head_dim * self.n_local_kv_heads, bias=False)
+        self.o_proj = nn.Linear(self.head_dim * num_attention_heads, hidden_size, bias=False)
+
+        self.attn_dropout = nn.Dropout(dropout)
+        self.resid_dropout = nn.Dropout(dropout)
+        self.dropout = dropout
+
+        self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention') and flash_attn
+
+    def forward(self,
+                x: torch.Tensor, # [bs, seq_len, hidden_size]
+                position_embeddings: Tuple[torch.Tensor, torch.Tensor], # rotary pos emb's sin/cos
+                past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None, # kv cache
+                use_cache=False,
+                attention_mask=None):
+        bs, seq_len, _ = x.shape
+
+        xq = self.q_proj(x)
+        xk = self.k_proj(x)
+        xv = self.v_proj(x)
+
+        xq = xq.view(bs, seq_len, self.n_local_heads, self.head_dim)
+        xk = xk.view(bs, seq_len, self.n_local_kv_heads, self.head_dim)
+        xv = xv.view(bs, seq_len, self.n_local_kv_heads, self.head_dim)
+
+        cos, sin = position_embeddings
+        # xq, xk = apply_rotate_pos_emb(xq, xk, cos[:seq_len], sin[:seq_len])
+        past_len = 0 if past_key_value is None else past_key_value[0].size(1)
+        xq, xk = apply_rotate_pos_emb(xq, xk, cos[past_len: past_len + seq_len], sin[past_len: past_len + seq_len])
+        
+
+        if past_key_value is not None:
+            xk = torch.cat([past_key_value[0], xk], dim=1)
+            xv = torch.cat([past_key_value[1], xv], dim=1)
+
+        past_key_value = (xk, xv) if use_cache else None
+        # past_key_value: (k, v), shape [bs, past_len, n_local_kv_heads, head_dim]
+
+        # expand kv heads
+        xq = xq.transpose(1, 2) #[bs, n_heads, seq_len, head_dim]
+        xk = repeat_kv(xk, self.n_rep).transpose(1, 2)
+        xv = repeat_kv(xv, self.n_rep).transpose(1, 2)
+
+        # Flash Attention
+        if self.flash and past_key_value is None:
+            dropout_p = self.dropout if self.training else 0.0
+            attn_mask = None
+            if attention_mask is not None:
+                attn_mask = attention_mask.view(bs, 1, 1, -1).expand(bs, self.n_local_heads, seq_len, -1)
+                attn_mask = attn_mask.bool()
+
+            output = F.scaled_dot_product_attention(
+                xq, xk, xv,
+                attn_mask=attn_mask,
+                dropout_p=dropout_p,
+                is_causal=True
+            )
+
+        else:
+            scores = (xq @ xk.transpose(-2, -1)) / math.sqrt(self.head_dim)
+            # scores  = scores + torch.triu(
+            #     torch.full((seq_len, seq_len), float('-inf'), device=scores.device),
+            #     diagonal=1
+            # ).unsqueeze(0).unsqueeze(0)  # 注意这里是triu不是tril
+            kv_seq_len = xk.size(-2)
+            causal_mask = torch.triu(
+                torch.full((seq_len, kv_seq_len), fill_value=float("-inf"), device=scores.device, dtype=scores.dtype),
+                diagonal=kv_seq_len-seq_len + 1,
+            )
+            scores = scores + causal_mask.unsqueeze(0).unsqueeze(0)
+
+
+            if attention_mask is not None:
+                attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
+                attention_mask = (1.0 - attention_mask) * -1e9
+                scores = scores + attention_mask
+
+            # softmax + attn_drop
+            scores = F.softmax(scores.float(), dim=-1).type_as(xq)
+            scores = self.attn_dropout(scores)
+
+            output = scores @ xv
+        
+        output = output.transpose(1, 2).reshape(bs, seq_len, -1)
+        output = self.resid_dropout(self.o_proj(output))
+        return output, past_key_value
+```
+init部分唯一需要注意的一点就是``q_proj``和``k/v_proj``的out_feats是不同的
+
+```python
+past_len = 0 if past_key_value is None else past_key_value[0].size(1)
+        xq, xk = apply_rotate_pos_emb(xq, xk, cos[past_len: past_len + seq_len], sin[past_len: past_len + seq_len])
+```
+第一个需要注意的点就是在计算RoPE时要关注是否需要加上past_len，因为根据下面这个公式：
+
+$$
+\theta_{m,i} = m \cdot \omega_i
+$$
+不同位置的token对应的旋转角是不一样的  
+
+第二个值得剖析的就是关于mask的相关问题  
+首先需要明确的一个问题就是attn_scores的shape，根据公式 scores = Q @ K^T，其中``q.shape: [num_q_token, head_dim]``, ``k.shape: [num_k_token, head_dim]``, 故``scores.shape: [num_q_token, num_k_token]``  
+基于这个分析，在没有KV cache时，显然attn_scores的shape就是一个方阵；在有KV cache时，因为q_len < k/v_len，attn_scores就不再是一个方阵了，这也引出了causal_mask在计算时的一个小细节
+```python
+causal_mask = torch.triu(
+                torch.full((seq_len, kv_seq_len), fill_value=float("-inf"), device=scores.device, dtype=scores.dtype),
+                diagonal=kv_seq_len-seq_len + 1,
+            )
+```
+
+注意：``diagonal=kv_seq_len-seq_len + 1``，这个参数就是为了保证当前token只能看见自己及之前的token，可以举例如下：  
+假设有``[x1, x2, x3, x4, x5]``， 现在KV cache中已经存了前三个，此时输入``[x4, x5]``，则``kv_seq_len=5``, ``seq_len=2``, ``diagonal=4``，得到的mask矩阵如下所示
+$$
+\text{causal\_mask} =
+\begin{bmatrix}
+0 & 0 & 0 & 0 & -\infty \\
+0 & 0 & 0 & 0 & 0
+\end{bmatrix}
+$$
+$-\infty$表示第4个query看不见第五个k/v
