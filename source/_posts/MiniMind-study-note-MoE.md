@@ -148,7 +148,20 @@ x =
 第 3 行 token1 -> expert2  
 第 4 行 token2 -> expert3  
 第 5 行 token2 -> expert1  
-就对齐了
+就对齐了  
+
+``mask = (flat_topk_idx == i) ``  
+``x_i = x[mask]   # [num_token_i, hidden_size]``  
+这段代码是为了得到repeat后的x中满足flat_topk_idx==i的那些行  
+接着用上面的例子，i=3时，可以得到``mask=[False, True, False, False, True, False]``，此时得到的``x_i=[token0, token2]``，token0和token2就是Expert3需要处理的输入  
+对应的``x_i``经过相应的Expert处理之后放回y中对应的位置，最后于topk_weight进行加权  
+
+在推理阶段则采用下面的``moe_infer``函数进行处理，该函数的思路如下：     
+1. 先把所有路由分支按expert的编号进行排序
+2. 把同一个expert负责的token连在一起
+3. expert一次性处理自己负责的那批token
+4. 把输出按原token位置scatter回去并累加
+
     
 ```python
     @torch.no_grad()
@@ -183,3 +196,150 @@ x =
             )
         return expert_cache
 ```
+
+``idxs = flat_expert_indices.argsort()``是这段代码中比较重要的一部分，``argsort``返回排序后的值对应的位置索引，还是接着用上面这个例子：``flat_topk_idx =[1, 3, 0, 2, 3, 1]``，排序后的expert顺序变为[0, 1, 1, 2, 3, 3]，但``idxs=[2, 0, 5, 3, 1, 4]``，这个idxs表示的含义就是第2个路由分支属于expert 0，第0、5个路由分支属于expert 1...   
+``tokens_pre_expert = flat_expert_indices.bincount().cpu().numpy().cumsum(0)``：经过``bincount``后，得到的结果为[1, 2, 1, 2]表示expert 1~4 分别出现的次数；再经``cumsum``之后，得到[1, 3, 4, 6]，这样就可以得到每个expert对应的区间，比如：expert 1: [0, 1) ; expert 2: [1, 3) ...  
+``token_idxs = idxs // self.config.n_expert_per_tok``的作用是把路由分支编号映射回原始的token编号（其实这句话读起来挺绕的，还是举例来说吧：  
+假设``n_expert_per_tok=2``，则token_idxs=[1, 0, 2, 1, 0, 2]，即第2条分支来自token 1；第0条分支来自token 0；第5条分支来自token 2...  
+```python
+        for i, end_idx in enumerate(tokens_pre_expert):
+            start_idx = 0 if i == 0 else tokens_pre_expert[i - 1]
+            if start_idx == end_idx:
+                continue
+```  
+这段就是去拿每个expert对应的start_idx和end_idx，如果二者相等，说明这个专家没有需要处理的token，故直接跳过  
+
+```python
+expert_cache.scatter_add_(
+    dim=0,
+    # [num_token_i] -->  [num_token_i, 1] --> [num_token_i, hidden_size]
+    index=exp_token_idx.view(-1, 1).repeat(1, x.shape[-1]), 
+    # [num_token_i, hidden_size]
+    src=expert_out 
+)
+```
+这个函数还是举例说明吧：  
+如果exp_token_idx = [0, 2], 则会把expert_out第0行输出加到expert_cache的第0行；expert_out第2行的输出加到第2行，维度变化只是为了满足函数的使用条件
+
+## MoEGate
+```python 
+class MoEGate(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.top_k = config.n_expert_per_tok
+        self.n_routed_experts = config.n_routed_experts
+        
+        self.scoring_func = config.scoring_func
+        self.alpha = config.aux_loss_alpha
+        self.seq_aux = config.seq_aux  # True: seq; False: batch
+
+        self.norm_topk_prob = config.norm_topk_prob
+        self.gating_dim = config.hidden_size
+
+        self.weight = nn.Parameter(torch.empty((self.n_routed_experts, self.gating_dim))) # [n_experts, hidden_size]
+        self.reset_parameter()
+
+    def reset_parameter(self):
+        nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+    
+    def forward(self, hidden_states):
+        # hidden_states: [bs, seq_len, hidden_size]
+        bs, seq_len, h = hidden_states.shape
+        hidden_states = hidden_states.view(-1, h) # [bs * seq_len, hidden_size]
+        logits = F.linear(hidden_states, self.weight, None) # [bs * seq_len, n_experts]
+
+        if self.scoring_func == 'softmax':
+            scores = logits.softmax(dim=-1)
+        else:
+            raise NotImplementedError(f'insupportable scoring function for MoE gating: {self.scoring_func}')
+        
+        topk_weight, topk_idx = torch.topk(scores, self.top_k, dim=-1, sorted=False) # [bs * seq_len, top_k]
+
+        if self.top_k > 1 and self.norm_topk_prob:
+            d = topk_weight.sum(-1, keepdim=True) + 1e-20
+            topk_weight /= d
+
+        # aux loss
+        if self.training and self.alpha > 0.0:
+            scores_for_aux = scores # [bs * seq_len, n_experts]
+            aux_topk = self.top_k   # [bs, seq_len * topk]
+            topk_idx_for_aux_loss = topk_idx.view(bs, -1)
+            # [bs * seq_len, topk] -> [bs, seq_len * topk]
+          
+            if self.seq_aux:
+                scores_for_seq_aux = scores_for_aux.view(bs, seq_len, -1)
+                ce = torch.zeros(bs, self.n_routed_experts, device=hidden_states.device)
+                ce.scatter_add_(
+                    dim=1,
+                    index=topk_idx_for_aux_loss,  # [bs, seq_len * aux_topk]
+                    src=torch.ones(bs, seq_len * aux_topk, device=hidden_states.device)
+                ).div_(seq_len * aux_topk / self.n_routed_experts)
+
+                aux_loss = (ce * scores_for_seq_aux.mean(dim=1)).sum(dim=1).mean() * self.alpha
+
+            else:
+                make_ce = F.one_hot(
+                    topk_idx_for_aux_loss.view(-1),
+                    self.n_routed_experts,
+                )
+                ce = make_ce.float().mean(0)
+                Pi = scores_for_aux.mean(0)
+                fi = ce * self.n_routed_experts
+                aux_loss = (fi * Pi).sum() * self.alpha
+
+        else:
+            aux_loss = hidden_states.new_tensor(0.0)
+        return topk_idx, topk_weight, aux_loss
+```
+这段代码里各种维度变换的作用和``scatter_add_``这个艹蛋的函数的使用真的是不得不品的一环（相关的例子也会沿用之间那个  
+先给出这些配置项的含义：  
+1. ``scoring_func``：打分函数，目前只支持softmax
+2. ``aux_loss_alpha``：辅助损失函数的权重
+3. ``seq_aux``：为True时对每个样本单独计算它在整个序列上使用了哪些expert；False是整个batch一起计算  
+4.``logits``：每个token对expert的分数向量  
+如果需要softmax的话，通过softmax把logits转化为概率分布scores，然后找出其topk_weight和idx，在topk>1时，需要对得到的topk_weight再进行归一化  
+
+接下来就是计算aux_loss这个比较关键的环节了  
+在``seq_aux=True``时，这里将直接通过一个例子讲解这部分代码在做什么  
+假设``bs=2, seq_len=3, top_k=2``， ``topk_idx``如下：
+```python
+topk_idx =
+[
+  [1, 3],   # 样本0 token0
+  [0, 3],   # 样本0 token1
+  [3, 2],   # 样本0 token2
+  [1, 1],   # 样本1 token0
+  [2, 2],   # 样本1 token1
+  [0, 1],   # 样本1 token2
+]
+```
+维度变换后的topk_idx变为了：
+```python
+[
+  [1, 3, 0, 3, 3, 2],   # 样本0 整个序列上的6条路由
+  [1, 1, 2, 2, 0, 1]    # 样本1 整个序列上的6条路由
+]
+```
+这样第n行对应的就是样本n在整个序列上使用了哪些expert  
+将scores的维度变为[bs, seq_len, n_experts]之后，第0维对应的是第几个样本；第1维对应是这样样本中的第几个token；第2维是这个token对各expert的soft score. 在后续``scores_for_seq_aux.mean(dim=1)``之后就得到了每个样本在整条序列平均后对每个expert的偏好  
+接着来讨论``ce``是干啥的，``ce = torch.zeros(bs, self.n_routed_experts, device=hidden_states.device)``，其中ce[b, e]可以理解为第b个样本中，expert e被选中了多少次，根据上面的例子，在有4个expert时，``ce``长下面这样：
+```python
+ce =
+[
+  [0, 0, 0, 0],   # 样本0
+  [0, 0, 0, 0]    # 样本1
+]
+```
+执行``scatter_add_``这个函数之后，因为 src 对应位置全是 1，所以就是：
+- expert1 加 1
+- expert3 加 1
+- expert0 加 1
+- expert3 再加 1
+- expert3 再加 1
+- expert2 加 1  
+最后第0行就变成了[1, 1, 1, 3]，同理第1行就是[1, 3, 2, 0]  
+所以其实``ce``的作用就是统计每个样本中，每个expert被选择了多少次的统计表  
+后续还有一个归一化操作``.div_(seq_len * aux_topk / self.n_routed_experts)``，这里``seq_len * aux_loss``计算的是应该样本总共有多少次topk路由选择，再除以n_expert之后，得到平均每个expert该被选择多少次  
+最后计算aux_loss：``aux_loss = (ce * scores_for_seq_aux.mean(dim=1)).sum(dim=1).mean() * self.alpha``，本质上是在同时约束硬路由结果(ce)和软路由倾向(score)  
+
+在不使用``seq_aux``的情况下，``ce``还是统计的哪些expert被选择了，后续的计算原理也都一样，只是把整个batch一起算了
