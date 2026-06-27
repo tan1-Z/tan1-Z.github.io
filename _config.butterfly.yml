@@ -1,6 +1,6 @@
 menu:
   Home: / || fas fa-home
-  Academic: /academic/ || fas fa-user-graduate
+  Notes: /blog/ || fas fa-book-open
   Archives: /archives/ || fas fa-archive
   Categories: /categories/ || fas fa-folder-open
   Tags: /tags/ || fas fa-tags
@@ -12,7 +12,10 @@ avatar:
   img: /img/avatar.jpg
   effect: false
 
-index_img: /img/index_bg.jpg
+disable_top_img: true
+index_img: false
+default_top_img: false
+index_top_img_height: 0
 
 social:
   fab fa-github: https://github.com/tan1-Z || GitHub || "#24292e"
@@ -20,14 +23,14 @@ social:
 
 aside:
   enable: true
-  hide: false
+  hide: true
   button: true
-  mobile: true
+  mobile: false
   position: right
 
   card_author:
     enable: true
-    content: Thanks for visiting. This blog shares my notes on research, learning, and technical projects.
+    description: Research notes, selected projects, and academic updates.
     button:
       enable: true
       icon: fab fa-github
@@ -35,8 +38,8 @@ aside:
       link: https://github.com/tan1-Z
 
   card_announcement:
-    enable: true
-    content: Welcome to my personal blog
+    enable: false
+    content:
 
   card_recent_post:
     enable: true
