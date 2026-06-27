@@ -48,7 +48,7 @@ body {
   align-items: center;
   background: transparent !important;
   box-shadow: none !important;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 #blog-info {
@@ -61,7 +61,7 @@ body {
 
 #menus .menus_items {
   display: flex;
-  gap: 28px;
+  gap: 26px;
 }
 
 #menus .menus_item {
@@ -71,6 +71,7 @@ body {
 #menus .site-page {
   padding: 0 !important;
   color: #555 !important;
+  font-size: 15px !important;
   font-weight: 600;
   text-shadow: none !important;
 }
@@ -211,7 +212,7 @@ body {
   scroll-margin-top: 76px;
 }
 
-.wowpage-section h2 {
+#article-container .wowpage-section h2 {
   margin: 0 0 16px;
   color: #444;
   font-size: 22px;
@@ -270,8 +271,8 @@ a:hover,
 
 .paper-item {
   display: grid;
-  grid-template-columns: 380px minmax(0, 1fr);
-  gap: 24px;
+  grid-template-columns: 410px minmax(0, 1fr);
+  gap: 22px;
   align-items: start;
   color: var(--wow-muted);
 }
@@ -296,30 +297,30 @@ a:hover,
 }
 
 .paper-title {
-  margin: -2px 0 8px;
+  margin: -1px 0 7px;
   color: #333;
-  font-size: 16px;
-  line-height: 1.38;
-  font-weight: 800;
+  font-size: 14.5px;
+  line-height: 1.36;
+  font-weight: 700;
   text-decoration: underline;
 }
 
-.paper-authors,
-.paper-venue,
-.paper-summary {
-  margin: 0 0 7px;
+#article-container .paper-authors,
+#article-container .paper-venue,
+#article-container .paper-summary {
+  margin: 0 0 6px;
   color: #444;
-  font-size: 14px;
-  line-height: 1.55;
+  font-size: 13.2px !important;
+  line-height: 1.48 !important;
 }
 
-.paper-venue {
+#article-container .paper-venue {
   color: #333;
   font-style: normal;
   font-weight: 700;
 }
 
-.paper-summary {
+#article-container .paper-summary {
   color: #555;
 }
 
@@ -336,7 +337,7 @@ a:hover,
 }
 
 .paper-actions a {
-  font-size: 14px;
+  font-size: 13.2px;
   font-weight: 700;
 }
 

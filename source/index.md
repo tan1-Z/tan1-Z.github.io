@@ -32,8 +32,6 @@ comments: false
 <h2>&#128293; News</h2>
 <ul class="wowpage-news">
 <li><span class="news-date">2026.02:</span><span>&#127881;&#127881; One paper accepted to CVPR 2026.</span></li>
-<li><span class="news-date">2026.04:</span><span>Started the MiniMind study note series covering Attention, Model, and MoE.</span></li>
-<li><span class="news-date">2026.03:</span><span>Continued organizing notes on LLM architectures and efficient modeling.</span></li>
 </ul>
 </section>
 <section class="wowpage-section" id="publications">
