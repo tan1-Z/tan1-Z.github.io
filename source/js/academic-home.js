@@ -6,7 +6,7 @@ async function initPapers() {
   const tagsContainer = document.getElementById("paper-tags");
   const listContainer = document.getElementById("paper-list");
 
-  if (!tagsContainer || !listContainer) return;
+  if (!listContainer) return;
 
   let papers = [];
   let currentTag = "All";
@@ -23,6 +23,8 @@ async function initPapers() {
   const allTags = ["All", ...new Set(papers.flatMap(paper => paper.tags || []))];
 
   function renderTags() {
+    if (!tagsContainer) return;
+
     tagsContainer.innerHTML = allTags
       .map(tag => {
         const active = tag === currentTag ? " active" : "";
@@ -78,11 +80,15 @@ function renderPaper(paper) {
     <article class="paper-item">
       ${image}
       <div class="paper-content">
-        <h3 class="paper-title">${escapeHtml(paper.title || "")}</h3>
+        <h3 class="paper-title">${
+          paperUrl
+            ? `<a href="${escapeAttribute(paperUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(paper.title || "")}</a>`
+            : escapeHtml(paper.title || "")
+        }</h3>
         <p class="paper-authors">${highlightAuthorName(paper.authors || "")}</p>
         <p class="paper-venue">${escapeHtml(paper.venue || "")}</p>
-        ${paper.summary ? `<p class="paper-summary">${escapeHtml(paper.summary)}</p>` : ""}
         ${actions ? `<div class="paper-actions">${actions}</div>` : ""}
+        ${paper.summary ? `<p class="paper-summary">${escapeHtml(paper.summary)}</p>` : ""}
         ${tags ? `<div class="paper-meta-tags">${tags}</div>` : ""}
       </div>
     </article>

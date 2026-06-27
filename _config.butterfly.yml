@@ -1,10 +1,12 @@
 menu:
-  Home: / || fas fa-home
-  Notes: /blog/ || fas fa-book-open
-  Archives: /archives/ || fas fa-archive
-  Categories: /categories/ || fas fa-folder-open
-  Tags: /tags/ || fas fa-tags
-  About: /about/ || fas fa-user
+  Homepage: /
+  About Me: /#about-me
+  News: /#news
+  Publications: /#publications
+  Honors and Awards: /#honors-awards
+  Educations: /#educations
+  Invited Talks: /#invited-talks
+  Internships: /#internships
 
 favicon: /img/favicon.jpg
 
