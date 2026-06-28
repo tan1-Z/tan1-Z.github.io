@@ -22,6 +22,9 @@ comments: false
 </ul>
 </aside>
 <main class="wowpage-main">
+<div class="wowpage-welcome" aria-label="Hi there, welcome to my homepage">
+<span>Hi there</span><span class="welcome-hand" aria-hidden="true">&#128075;</span><span>Welcome to my homepage!</span>
+</div>
 <section class="wowpage-intro" id="about-me">
 <p>Hi! I am an undergraduate student at the School of Information and Software Engineering, University of Electronic Science and Technology of China.</p>
 <p>My research interests include <strong>3D Vision</strong>, <strong>Point Cloud Completion</strong>, <strong>Hypergraph Learning</strong>, and other emerging areas in AI. I enjoy exploring clean research ideas and documenting the learning process behind them.</p>

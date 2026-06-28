@@ -208,6 +208,53 @@ body {
   min-width: 0;
 }
 
+.wowpage-welcome {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin: -2px 0 24px;
+  color: #c57474;
+  font-family: "Segoe Print", "Comic Sans MS", "Trebuchet MS", cursive;
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.welcome-hand {
+  display: inline-block;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 28px;
+  line-height: 1;
+  transform-origin: 70% 70%;
+  animation: welcome-wave 1.5s ease-in-out infinite;
+}
+
+@keyframes welcome-wave {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  15% {
+    transform: rotate(16deg);
+  }
+
+  30% {
+    transform: rotate(-10deg);
+  }
+
+  45% {
+    transform: rotate(14deg);
+  }
+
+  60% {
+    transform: rotate(-6deg);
+  }
+}
+
 .wowpage-intro {
   padding-top: 4px;
   margin-bottom: 22px;
@@ -818,6 +865,10 @@ a:hover,
     height: 138px;
   }
 
+  .wowpage-welcome {
+    justify-content: flex-start;
+  }
+
   .paper-item {
     grid-template-columns: 1fr;
   }
@@ -851,6 +902,16 @@ a:hover,
     font-size: 20px;
   }
 
+  .wowpage-welcome {
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 18px;
+  }
+
+  .welcome-hand {
+    font-size: 24px;
+  }
+
   .note-links li {
     display: block;
   }
@@ -873,5 +934,11 @@ a:hover,
     float: none;
     display: block;
     margin-top: 4px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-hand {
+    animation: none;
   }
 }
