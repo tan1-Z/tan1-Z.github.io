@@ -7,7 +7,6 @@ aside: false
 comments: false
 ---
 
-<link rel="stylesheet" href="/css/academic-home.css">
 <div class="wowpage-home">
 <aside class="wowpage-sidebar" aria-label="Profile">
 <img class="wowpage-avatar" src="/img/academic/avatar.jpg" alt="Pei Tan">

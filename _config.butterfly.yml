@@ -24,7 +24,7 @@ social:
   fas fa-envelope: mailto:peit879@gmail.com || Email || "#4a4a4a"
 
 aside:
-  enable: true
+  enable: false
   hide: true
   button: true
   mobile: false
@@ -60,3 +60,23 @@ math:
 
 katex:
   copy_tex: false
+
+toc:
+  post: false
+  page: false
+
+post_copyright:
+  enable: false
+
+related_post:
+  enable: false
+
+post_pagination: false
+
+share:
+  use:
+
+inject:
+  head:
+    - <link rel="stylesheet" href="/css/academic-home.css">
+  bottom:
