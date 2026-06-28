@@ -8,7 +8,7 @@
     "summary": "A hypergraph-based framework for point cloud completion that captures higher-order geometric correlations.",
     "badge": "CVPR 2026",
     "links": {
-      "paper": "https://rinfly.com/assets/pdf/hyper-pcn.pdf",
+      "paper": "https://openaccess.thecvf.com/content/CVPR2026/papers/Li_Hyper-PCN_Hypergraph-Based_Point_Cloud_Completion_via_High-Order_Correlation_Modeling_CVPR_2026_paper.pdf",
       "code": "https://github.com/Rinfly/Hyper-PCN"
     }
   }
