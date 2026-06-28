@@ -398,7 +398,7 @@ a:hover,
 }
 
 .post #content-inner {
-  width: min(980px, calc(100vw - 70px)) !important;
+  width: min(820px, calc(100vw - 150px)) !important;
   margin: 86px auto 66px !important;
   display: block !important;
   padding: 0 !important;
@@ -520,7 +520,7 @@ a:hover,
 
 #article-container figure.highlight,
 #article-container pre {
-  font-family: var(--wow-mono);
+  font-family: inherit;
 }
 
 #article-container figure.highlight {
@@ -528,45 +528,13 @@ a:hover,
   overflow: hidden;
   margin: 18px 0 20px !important;
   border: 1px solid var(--wow-code-line) !important;
-  border-radius: 6px !important;
+  border-radius: 4px !important;
   background: #fff !important;
   box-shadow: none !important;
 }
 
 #article-container figure.highlight .highlight-tools {
-  height: 34px !important;
-  min-height: 34px !important;
-  padding: 0 12px !important;
-  border-bottom: 1px solid var(--wow-code-line);
-  background: var(--wow-code-bar) !important;
-  color: #656d76 !important;
-  font-family: var(--wow-mono);
-  font-size: 12px !important;
-  line-height: 34px !important;
-}
-
-#article-container figure.highlight .highlight-tools i {
-  color: #8b949e !important;
-  font-size: 12px;
-  line-height: 1;
-}
-
-#article-container figure.highlight .highlight-tools i:hover {
-  color: var(--wow-link-hover) !important;
-}
-
-#article-container figure.highlight .code-lang {
-  color: #656d76 !important;
-  font-size: 11px !important;
-  font-weight: 700 !important;
-  letter-spacing: 0 !important;
-  text-transform: uppercase;
-}
-
-#article-container figure.highlight .copy-button {
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
+  display: none !important;
 }
 
 #article-container figure.highlight table {
@@ -592,15 +560,16 @@ a:hover,
 }
 
 #article-container figure.highlight .gutter {
-  width: 44px;
-  min-width: 44px;
+  width: 38px;
+  min-width: 38px;
   border-right: 1px solid var(--wow-code-line) !important;
   background: var(--wow-code-bg) !important;
 }
 
 #article-container figure.highlight .gutter pre {
-  padding: 14px 10px 14px 0 !important;
+  padding: 12px 9px 12px 0 !important;
   color: var(--wow-code-muted) !important;
+  font-family: inherit !important;
   text-align: right;
   user-select: none;
 }
@@ -611,13 +580,13 @@ a:hover,
 }
 
 #article-container figure.highlight .code pre {
-  padding: 14px 16px !important;
+  padding: 12px 14px !important;
 }
 
 #article-container pre {
   margin: 16px 0 !important;
   border: 1px solid var(--wow-code-line) !important;
-  border-radius: 6px !important;
+  border-radius: 4px !important;
   background: var(--wow-code-bg) !important;
   box-shadow: none !important;
 }
@@ -636,7 +605,7 @@ a:hover,
   border-radius: 4px;
   background: #f7f7f7;
   color: #8f4f4f;
-  font-family: var(--wow-mono);
+  font-family: inherit;
   font-size: 0.92em;
 }
 
@@ -646,8 +615,9 @@ a:hover,
   border: 0;
   background: transparent;
   color: #24292f;
-  font-size: 13px;
-  line-height: 1.7;
+  font-family: inherit !important;
+  font-size: 14px;
+  line-height: 1.68;
 }
 
 #article-container figure.highlight .line {
