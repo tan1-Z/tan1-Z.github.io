@@ -1,6 +1,6 @@
 ---
 title: model_minimind
-date: 2026-07-03 00:00:00
+date: 2026-07-03 12:00:00
 tags:
   - Blog
 categories:
