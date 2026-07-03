@@ -64,6 +64,7 @@ comments: false
 <section class="wowpage-section" id="notes">
 <h2>&#128218; Notes</h2>
 <ul class="note-links">
+<li><a href="/2026/07/03/model-minimind/">model_minimind</a><span>2026-07-03</span></li>
 <li><a href="/2026/04/14/MiniMind-study-note-Attention/">MiniMind Attention</a><span>2026-04-14</span></li>
 <li><a href="/2026/04/14/MiniMind-study-note-Model/">MiniMind Model</a><span>2026-04-14</span></li>
 <li><a href="/2026/03/24/MiniMind-study-note-MoE/">MiniMind MoE</a><span>2026-03-24</span></li>
