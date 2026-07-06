@@ -22,7 +22,7 @@ FFN主要是通道维度的非线性变换 ，可以用Conv-FFN、Gated-FFN、Sp
 
 Norm和Residual也挺好用，残差爷爷和门控会帮你的^_^
 
-**同时还可以通过多分支来缝多个创新点**
+<span style="color:#e03e3e"><strong>同时还可以通过多分支来缝多个创新点</strong></span>
 
 Block Fusion：并联、串联、残差、门控
 
@@ -37,7 +37,7 @@ Y = Up(Attention(Down(Q), Down(K), Down(V)))
 
 显然，上采样和下采样也就成了可以创新做文章的地方
 
-**高分辨率上保留细节，低分辨率上计算全局关系（局部+全局）**
+**高分辨率上保留细节，低分辨率上计算全局关系（<span style="color:#e03e3e">局部+全局</span>）**
 
 3. 线性全局建模：Mamba/SSM
 直接用Mamba去替换TokenMixer，不过感觉直接套有点Mamba Out了TuT
