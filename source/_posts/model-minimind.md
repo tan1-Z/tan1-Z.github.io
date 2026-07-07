@@ -230,7 +230,7 @@ class FeedForward(nn.Module):
 				return self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
 ```
 
-![MoE gating network](/img/model-minimind-moe.png)
+![Universal Reasoning Model and ConvSwiGLU](/img/model-minimind-urm-convswiglu.png)
 
 ## MOEFeedForward
 
