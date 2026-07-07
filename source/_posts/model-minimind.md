@@ -581,4 +581,180 @@ for i in range(input_ids.shape[0]):
 <details>
 <summary>来自codex的解释</summary>
 
+这行是在把 **top-p 里排序后的 mask** 映射回 **原始词表顺序**，然后把需要过滤的 token 的 logit 设成 `-inf`。
+
+代码：
+
+```python
+logits[mask.scatter(1, sorted_indices, mask)] = -float('inf')
+```
+
+先记住前面有两步：
+
+```python
+sorted_logits, sorted_indices = torch.sort(logits, descending=True)
+mask = ...
+```
+
+此时：
+
+```python
+logits         是原始词表顺序
+sorted_logits  是按分数从高到低排序后的顺序
+sorted_indices 记录排序后每个位置原来对应哪个 token id
+mask           也是排序后的顺序
+```
+
+问题是：`mask` 当前不能直接用来索引 `logits`，因为它们顺序不一样。
+
+---
+
+举个例子。
+
+原始 logits：
+
+```text
+token id:   0    1    2    3    4
+logits:    1.0  5.0  0.5  3.0  2.0
+```
+
+排序后：
+
+```text
+sorted position:  0    1    2    3    4
+sorted_logits:   5.0  3.0  2.0  1.0  0.5
+sorted_indices:   1    3    4    0    2
+```
+
+意思是：
+
+```text
+排序后第 0 个，是原来的 token 1
+排序后第 1 个，是原来的 token 3
+排序后第 2 个，是原来的 token 4
+排序后第 3 个，是原来的 token 0
+排序后第 4 个，是原来的 token 2
+```
+
+假设 top-p 后的排序 mask 是：
+
+```text
+mask in sorted order:
+[False, False, True, True, True]
+```
+
+含义是：
+
+```text
+保留 sorted position 0、1
+过滤 sorted position 2、3、4
+```
+
+也就是保留：
+
+```text
+token 1, token 3
+```
+
+过滤：
+
+```text
+token 4, token 0, token 2
+```
+
+但是 `logits` 还是原始顺序：
+
+```text
+token id: 0  1  2  3  4
+```
+
+所以我们需要把 mask 变回原始词表顺序：
+
+```text
+original order mask:
+token 0 -> True
+token 1 -> False
+token 2 -> True
+token 3 -> False
+token 4 -> True
+
+也就是:
+[True, False, True, False, True]
+```
+
+这正是：
+
+```text
+mask.scatter(1, sorted_indices, mask)
+```
+
+在做的事。
+
+---
+
+拆开理解：
+
+```text
+mask.scatter(1, sorted_indices, mask)
+```
+
+等价于：
+
+```text
+original_mask = torch.zeros_like(mask)
+original_mask.scatter_(dim=1, index=sorted_indices, src=mask)
+```
+
+含义是：
+
+```text
+沿着第 1 维，也就是 vocab 维度，
+把排序顺序里的 mask 值，
+按照 sorted_indices 指定的位置，
+放回原始 token id 对应的位置。
+```
+
+所以：
+
+```text
+mask.scatter(1, sorted_indices, mask)
+```
+
+会得到一个新的 boolean mask，顺序和 `logits` 一致。
+
+然后：
+
+```text
+logits[original_mask] = -float('inf')
+```
+
+把需要过滤的 token 设成负无穷。
+
+---
+
+所以整行：
+
+```text
+logits[mask.scatter(1, sorted_indices, mask)] = -float('inf')
+```
+
+可以写得更清楚一点：
+
+```text
+original_mask = mask.scatter(1, sorted_indices, mask)
+logits[original_mask] = -float("inf")
+```
+
+作用是：
+
+> 把 top-p 计算出来的“排序后过滤 mask”还原到原始词表位置，然后把被过滤 token 的 logits 设为 `-inf`。
+
+后面再做：
+
+```text
+torch.softmax(logits, dim=-1)
+```
+
+这些 `-inf` 位置的概率就会变成 0，不会被采样到。
+
 </details>
