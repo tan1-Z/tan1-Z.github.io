@@ -11,8 +11,7 @@ comments: false
 <aside class="wowpage-sidebar" aria-label="Profile">
 <img class="wowpage-avatar" src="/img/academic/avatar.jpg" alt="Pei Tan">
 <h1>Pei Tan</h1>
-<p class="wowpage-school">University of Electronic Science and Technology of China</p>
-<p class="wowpage-bio">Undergraduate student at UESTC. Focusing on 3D Vision, Point Cloud Completion, Hypergraph Learning, and Deep Learning.</p>
+<p class="wowpage-bio">Undergraduate student at UESTC. Focusing on 3D Vision, Point Cloud Completion, and Hypergraph Learning.</p>
 <ul class="wowpage-profile-links">
 <li><i class="fas fa-map-marker-alt"></i><span>Chengdu, Sichuan, China</span></li>
 <li><i class="fas fa-envelope"></i><a href="mailto:peit879@gmail.com">Email</a></li>
