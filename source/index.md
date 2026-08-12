@@ -25,8 +25,8 @@ comments: false
 </div>
 <section class="wowpage-intro" id="about-me">
 <p>Hi! I am an undergraduate student at the School of Information and Software Engineering, University of Electronic Science and Technology of China.</p>
-<p>My research interests include <strong>3D Vision</strong>, <strong>Point Cloud Completion</strong>, <strong>Hypergraph Learning</strong>, and other emerging areas in AI. I enjoy exploring clean research ideas and documenting the learning process behind them.</p>
-<p>I am currently collecting my research updates, selected publications, and projects on this homepage. Feel free to reach out if you are interested in collaboration or potential opportunities.</p>
+<p>My research interests include <strong>3D Vision</strong>, <strong>Point Cloud Completion</strong>, <strong>Hypergraph Learning</strong>, and other emerging areas in AI. I enjoy exploring clean research ideas and collaborating across related fields.</p>
+<p>I am currently open to research collaborations and potential opportunities. Feel free to reach out.</p>
 </section>
 <section class="wowpage-section" id="news">
 <h2>&#128293; News</h2>
