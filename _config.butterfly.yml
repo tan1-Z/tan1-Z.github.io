@@ -78,5 +78,5 @@ share:
 
 inject:
   head:
-    - <link rel="stylesheet" href="/css/academic-home.css?v=20260812-comic">
+    - <link rel="stylesheet" href="/css/academic-home.css?v=20260812-source-sans-3">
   bottom:
