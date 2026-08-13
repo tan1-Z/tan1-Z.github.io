@@ -5,7 +5,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function initSidebarPlayer() {
   const audio = document.getElementById("sidebar-audio");
-  const fileInput = document.getElementById("player-files");
   const trackLabel = document.getElementById("player-track");
   const currentTime = document.getElementById("player-current");
   const duration = document.getElementById("player-duration");
@@ -15,7 +14,7 @@ async function initSidebarPlayer() {
   const nextButton = document.getElementById("player-next");
   const volume = document.getElementById("player-volume");
 
-  if (!audio || !fileInput || !trackLabel || !currentTime || !duration || !progress || !previousButton || !toggleButton || !nextButton || !volume) return;
+  if (!audio || !trackLabel || !currentTime || !duration || !progress || !previousButton || !toggleButton || !nextButton || !volume) return;
 
   const playlist = [];
   let currentIndex = -1;
@@ -70,22 +69,6 @@ async function initSidebarPlayer() {
     }
   }
 
-  fileInput.addEventListener("change", () => {
-    const files = Array.from(fileInput.files || []).filter(file => file.type.startsWith("audio/") || /\.(mp3|wav|ogg|m4a|aac|flac|opus)$/i.test(file.name));
-    if (!files.length) return;
-
-    const firstNewTrack = playlist.length;
-    files.forEach(file => {
-      playlist.push({
-        name: file.name.replace(/\.[^.]+$/, ""),
-        url: URL.createObjectURL(file),
-        objectUrl: true
-      });
-    });
-    fileInput.value = "";
-    loadTrack(firstNewTrack);
-  });
-
   toggleButton.addEventListener("click", () => {
     if (currentIndex < 0) return;
     if (audio.paused) {
@@ -136,12 +119,8 @@ async function initSidebarPlayer() {
     else setPlayIcon(false);
   });
 
-  window.addEventListener("beforeunload", () => {
-    playlist.filter(track => track.objectUrl).forEach(track => URL.revokeObjectURL(track.url));
-  });
-
   try {
-    const response = await fetch("/data/music.json?v=20260813-player-fix");
+    const response = await fetch("/data/music.json?v=20260814-fixed-playlist");
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
     const data = await response.json();
     const publishedTracks = Array.isArray(data) ? data : data.tracks;
@@ -152,16 +131,13 @@ async function initSidebarPlayer() {
         playlist.push({
           name: String(track.title || track.name || "Untitled track"),
           artist: track.artist ? String(track.artist) : "",
-          url: track.src.trim(),
-          objectUrl: false
+          url: track.src.trim()
         });
       });
     }
 
     if (playlist.length) loadTrack(0);
-  } catch (error) {
-    // Local imports remain available when the published playlist cannot load.
-  }
+  } catch (error) {}
 
   updateButtons();
 }

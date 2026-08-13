@@ -21,10 +21,6 @@ comments: false
 <section class="sidebar-player" aria-label="Music player">
 <div class="sidebar-player-head">
 <h2><i class="fas fa-music" aria-hidden="true"></i><span>Music</span></h2>
-<label class="player-import" for="player-files" aria-label="Import audio files" title="Import audio files">
-<i class="fas fa-folder-plus" aria-hidden="true"></i>
-</label>
-<input id="player-files" class="player-file-input" type="file" accept="audio/*" multiple>
 </div>
 <p class="player-track" id="player-track" aria-live="polite">No audio selected</p>
 <div class="player-progress-row">
@@ -86,4 +82,4 @@ comments: false
 </section>
 </main>
 </div>
-<script src="/js/academic-home.js?v=20260813-player-fix"></script>
+<script src="/js/academic-home.js?v=20260814-fixed-playlist"></script>

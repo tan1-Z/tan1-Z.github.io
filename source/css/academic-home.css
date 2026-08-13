@@ -267,7 +267,6 @@ body {
   font-size: 14px;
 }
 
-.player-import,
 .player-controls button {
   display: inline-flex;
   flex: 0 0 auto;
@@ -285,27 +284,15 @@ body {
   transition: color 0.2s ease, background-color 0.2s ease;
 }
 
-.player-import:hover,
 .player-controls button:hover:not(:disabled) {
   background: #f4f4f4;
   color: var(--wow-link-hover);
 }
 
-.player-import:focus-within,
 .player-controls button:focus-visible,
 .player-range:focus-visible {
   outline: 2px solid var(--wow-link);
   outline-offset: 2px;
-}
-
-.player-file-input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 
 #article-container .player-track {
