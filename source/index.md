@@ -41,7 +41,7 @@ comments: false
 <input id="player-volume" class="player-range" type="range" min="0" max="1" value="0.75" step="0.05" aria-label="Volume">
 </div>
 </div>
-<audio id="sidebar-audio" preload="metadata"></audio>
+<audio id="sidebar-audio" preload="auto"></audio>
 </section>
 </aside>
 <main class="wowpage-main">
@@ -86,4 +86,4 @@ comments: false
 </section>
 </main>
 </div>
-<script src="/js/academic-home.js?v=20260813-playlist"></script>
+<script src="/js/academic-home.js?v=20260813-player-fix"></script>

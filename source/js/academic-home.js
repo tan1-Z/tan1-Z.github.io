@@ -55,7 +55,9 @@ async function initSidebarPlayer() {
     if (!playlist.length) return;
     currentIndex = (index + playlist.length) % playlist.length;
     const track = playlist[currentIndex];
+    audio.pause();
     audio.src = track.url;
+    audio.load();
     trackLabel.textContent = getTrackLabel(track);
     currentTime.textContent = "0:00";
     duration.textContent = "0:00";
@@ -87,6 +89,7 @@ async function initSidebarPlayer() {
   toggleButton.addEventListener("click", () => {
     if (currentIndex < 0) return;
     if (audio.paused) {
+      if (audio.readyState === HTMLMediaElement.HAVE_NOTHING) audio.load();
       audio.play().catch(() => setPlayIcon(false));
     } else {
       audio.pause();
@@ -138,7 +141,7 @@ async function initSidebarPlayer() {
   });
 
   try {
-    const response = await fetch("/data/music.json");
+    const response = await fetch("/data/music.json?v=20260813-player-fix");
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
     const data = await response.json();
     const publishedTracks = Array.isArray(data) ? data : data.tracks;
