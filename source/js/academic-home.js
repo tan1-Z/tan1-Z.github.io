@@ -1,6 +1,135 @@
 document.addEventListener("DOMContentLoaded", () => {
   initPapers();
+  initSidebarPlayer();
 });
+
+function initSidebarPlayer() {
+  const audio = document.getElementById("sidebar-audio");
+  const fileInput = document.getElementById("player-files");
+  const trackLabel = document.getElementById("player-track");
+  const currentTime = document.getElementById("player-current");
+  const duration = document.getElementById("player-duration");
+  const progress = document.getElementById("player-progress");
+  const previousButton = document.getElementById("player-previous");
+  const toggleButton = document.getElementById("player-toggle");
+  const nextButton = document.getElementById("player-next");
+  const volume = document.getElementById("player-volume");
+
+  if (!audio || !fileInput || !trackLabel || !currentTime || !duration || !progress || !previousButton || !toggleButton || !nextButton || !volume) return;
+
+  const playlist = [];
+  let currentIndex = -1;
+  let seeking = false;
+
+  audio.volume = Number(volume.value);
+
+  function formatTime(value) {
+    if (!Number.isFinite(value) || value < 0) return "0:00";
+    const minutes = Math.floor(value / 60);
+    const seconds = Math.floor(value % 60).toString().padStart(2, "0");
+    return `${minutes}:${seconds}`;
+  }
+
+  function setPlayIcon(isPlaying) {
+    const icon = toggleButton.querySelector("i");
+    if (!icon) return;
+    icon.className = isPlaying ? "fas fa-pause" : "fas fa-play";
+    toggleButton.setAttribute("aria-label", isPlaying ? "Pause" : "Play");
+    toggleButton.title = isPlaying ? "Pause" : "Play";
+  }
+
+  function updateButtons() {
+    const hasTrack = currentIndex >= 0;
+    const hasMultipleTracks = playlist.length > 1;
+    toggleButton.disabled = !hasTrack;
+    progress.disabled = !hasTrack;
+    previousButton.disabled = !hasMultipleTracks;
+    nextButton.disabled = !hasMultipleTracks;
+  }
+
+  function loadTrack(index, autoplay = false) {
+    if (!playlist.length) return;
+    currentIndex = (index + playlist.length) % playlist.length;
+    const track = playlist[currentIndex];
+    audio.src = track.url;
+    trackLabel.textContent = track.name;
+    currentTime.textContent = "0:00";
+    duration.textContent = "0:00";
+    progress.value = "0";
+    setPlayIcon(false);
+    updateButtons();
+
+    if (autoplay) {
+      audio.play().catch(() => setPlayIcon(false));
+    }
+  }
+
+  fileInput.addEventListener("change", () => {
+    const files = Array.from(fileInput.files || []).filter(file => file.type.startsWith("audio/") || /\.(mp3|wav|ogg|m4a|aac|flac|opus)$/i.test(file.name));
+    if (!files.length) return;
+
+    const firstNewTrack = playlist.length;
+    files.forEach(file => {
+      playlist.push({
+        name: file.name.replace(/\.[^.]+$/, ""),
+        url: URL.createObjectURL(file)
+      });
+    });
+    fileInput.value = "";
+    loadTrack(firstNewTrack);
+  });
+
+  toggleButton.addEventListener("click", () => {
+    if (currentIndex < 0) return;
+    if (audio.paused) {
+      audio.play().catch(() => setPlayIcon(false));
+    } else {
+      audio.pause();
+    }
+  });
+
+  previousButton.addEventListener("click", () => loadTrack(currentIndex - 1, !audio.paused));
+  nextButton.addEventListener("click", () => loadTrack(currentIndex + 1, !audio.paused));
+
+  progress.addEventListener("input", () => {
+    seeking = true;
+    const targetTime = Number(progress.value);
+    currentTime.textContent = formatTime(targetTime);
+  });
+
+  progress.addEventListener("change", () => {
+    if (Number.isFinite(audio.duration)) audio.currentTime = Number(progress.value);
+    seeking = false;
+  });
+
+  volume.addEventListener("input", () => {
+    audio.volume = Number(volume.value);
+  });
+
+  audio.addEventListener("loadedmetadata", () => {
+    progress.max = Number.isFinite(audio.duration) ? String(audio.duration) : "0";
+    duration.textContent = formatTime(audio.duration);
+  });
+
+  audio.addEventListener("timeupdate", () => {
+    if (seeking) return;
+    progress.value = String(audio.currentTime || 0);
+    currentTime.textContent = formatTime(audio.currentTime);
+  });
+
+  audio.addEventListener("play", () => setPlayIcon(true));
+  audio.addEventListener("pause", () => setPlayIcon(false));
+  audio.addEventListener("ended", () => {
+    if (playlist.length > 1) loadTrack(currentIndex + 1, true);
+    else setPlayIcon(false);
+  });
+
+  window.addEventListener("beforeunload", () => {
+    playlist.forEach(track => URL.revokeObjectURL(track.url));
+  });
+
+  updateButtons();
+}
 
 async function initPapers() {
   const tagsContainer = document.getElementById("paper-tags");

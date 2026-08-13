@@ -18,6 +18,31 @@ comments: false
 <li><i class="fab fa-github"></i><a href="https://github.com/tan1-Z" target="_blank" rel="noopener noreferrer">Github</a></li>
 <li><i class="fas fa-graduation-cap"></i><a href="https://scholar.google.com/citations?user=0PstVWIAAAAJ&amp;hl=zh-CN" target="_blank" rel="noopener noreferrer">Google Scholar</a></li>
 </ul>
+<section class="sidebar-player" aria-label="Music player">
+<div class="sidebar-player-head">
+<h2><i class="fas fa-music" aria-hidden="true"></i><span>Music</span></h2>
+<label class="player-import" for="player-files" aria-label="Import audio files" title="Import audio files">
+<i class="fas fa-folder-plus" aria-hidden="true"></i>
+</label>
+<input id="player-files" class="player-file-input" type="file" accept="audio/*" multiple>
+</div>
+<p class="player-track" id="player-track" aria-live="polite">No audio selected</p>
+<div class="player-progress-row">
+<span id="player-current">0:00</span>
+<input id="player-progress" class="player-range player-progress" type="range" min="0" max="100" value="0" step="0.1" aria-label="Playback position" disabled>
+<span id="player-duration">0:00</span>
+</div>
+<div class="player-controls">
+<button id="player-previous" type="button" aria-label="Previous track" title="Previous track" disabled><i class="fas fa-step-backward" aria-hidden="true"></i></button>
+<button id="player-toggle" class="player-toggle" type="button" aria-label="Play" title="Play" disabled><i class="fas fa-play" aria-hidden="true"></i></button>
+<button id="player-next" type="button" aria-label="Next track" title="Next track" disabled><i class="fas fa-step-forward" aria-hidden="true"></i></button>
+<div class="player-volume">
+<i class="fas fa-volume-up" aria-hidden="true"></i>
+<input id="player-volume" class="player-range" type="range" min="0" max="1" value="0.75" step="0.05" aria-label="Volume">
+</div>
+</div>
+<audio id="sidebar-audio" preload="metadata"></audio>
+</section>
 </aside>
 <main class="wowpage-main">
 <div class="wowpage-welcome" aria-label="Hi there, welcome to my homepage">
@@ -61,4 +86,4 @@ comments: false
 </section>
 </main>
 </div>
-<script src="/js/academic-home.js"></script>
+<script src="/js/academic-home.js?v=20260813-player"></script>
