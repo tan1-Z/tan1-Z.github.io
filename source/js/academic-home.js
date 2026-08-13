@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initSidebarPlayer();
 });
 
-function initSidebarPlayer() {
+async function initSidebarPlayer() {
   const audio = document.getElementById("sidebar-audio");
   const fileInput = document.getElementById("player-files");
   const trackLabel = document.getElementById("player-track");
@@ -47,12 +47,16 @@ function initSidebarPlayer() {
     nextButton.disabled = !hasMultipleTracks;
   }
 
+  function getTrackLabel(track) {
+    return track.artist ? `${track.name} - ${track.artist}` : track.name;
+  }
+
   function loadTrack(index, autoplay = false) {
     if (!playlist.length) return;
     currentIndex = (index + playlist.length) % playlist.length;
     const track = playlist[currentIndex];
     audio.src = track.url;
-    trackLabel.textContent = track.name;
+    trackLabel.textContent = getTrackLabel(track);
     currentTime.textContent = "0:00";
     duration.textContent = "0:00";
     progress.value = "0";
@@ -72,7 +76,8 @@ function initSidebarPlayer() {
     files.forEach(file => {
       playlist.push({
         name: file.name.replace(/\.[^.]+$/, ""),
-        url: URL.createObjectURL(file)
+        url: URL.createObjectURL(file),
+        objectUrl: true
       });
     });
     fileInput.value = "";
@@ -119,14 +124,41 @@ function initSidebarPlayer() {
 
   audio.addEventListener("play", () => setPlayIcon(true));
   audio.addEventListener("pause", () => setPlayIcon(false));
+  audio.addEventListener("error", () => {
+    setPlayIcon(false);
+    trackLabel.textContent = "Audio unavailable";
+  });
   audio.addEventListener("ended", () => {
     if (playlist.length > 1) loadTrack(currentIndex + 1, true);
     else setPlayIcon(false);
   });
 
   window.addEventListener("beforeunload", () => {
-    playlist.forEach(track => URL.revokeObjectURL(track.url));
+    playlist.filter(track => track.objectUrl).forEach(track => URL.revokeObjectURL(track.url));
   });
+
+  try {
+    const response = await fetch("/data/music.json");
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    const data = await response.json();
+    const publishedTracks = Array.isArray(data) ? data : data.tracks;
+
+    if (Array.isArray(publishedTracks)) {
+      publishedTracks.forEach(track => {
+        if (!track || typeof track.src !== "string" || !track.src.trim()) return;
+        playlist.push({
+          name: String(track.title || track.name || "Untitled track"),
+          artist: track.artist ? String(track.artist) : "",
+          url: track.src.trim(),
+          objectUrl: false
+        });
+      });
+    }
+
+    if (playlist.length) loadTrack(0);
+  } catch (error) {
+    // Local imports remain available when the published playlist cannot load.
+  }
 
   updateButtons();
 }

@@ -86,4 +86,4 @@ comments: false
 </section>
 </main>
 </div>
-<script src="/js/academic-home.js?v=20260813-player"></script>
+<script src="/js/academic-home.js?v=20260813-playlist"></script>
