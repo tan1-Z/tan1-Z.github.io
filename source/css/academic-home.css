@@ -248,13 +248,13 @@ body {
   gap: 12px;
   margin: -2px 0 24px;
   color: #c57474;
-  font-family: inherit;
+  font-family: "Comic Neue", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", cursive, sans-serif;
   font-size: 21px;
-  font-weight: 700;
+  font-weight: 400;
   line-height: 1.45;
   letter-spacing: 0;
   text-align: center;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .welcome-hand {

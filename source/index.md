@@ -11,7 +11,7 @@ comments: false
 <aside class="wowpage-sidebar" aria-label="Profile">
 <img class="wowpage-avatar" src="/img/academic/avatar.jpg" alt="Pei Tan">
 <h1>Pei Tan</h1>
-<p class="wowpage-bio">Undergraduate student at UESTC. Focusing on 3D Vision, Point Cloud Completion, and Hypergraph Learning.</p>
+<p class="wowpage-bio">Undergraduate student at UESTC. Focusing on 3D Vision and Hypergraph Learning.</p>
 <ul class="wowpage-profile-links">
 <li><i class="fas fa-map-marker-alt"></i><span>Chengdu, Sichuan, China</span></li>
 <li><i class="fas fa-envelope"></i><a href="mailto:peit879@gmail.com">Email</a></li>
@@ -25,7 +25,7 @@ comments: false
 </div>
 <section class="wowpage-intro" id="about-me">
 <p>Hi! I am an undergraduate student at the School of Information and Software Engineering, University of Electronic Science and Technology of China.</p>
-<p>My research interests include <strong>3D Vision</strong>, <strong>Point Cloud Completion</strong>, <strong>Hypergraph Learning</strong>, and other emerging areas in AI. I enjoy exploring clean research ideas and collaborating across related fields.</p>
+<p>My research interests include <strong>3D Vision</strong>, <strong>Hypergraph Learning</strong>, and other emerging areas in AI. I enjoy exploring clean research ideas and collaborating across related fields.</p>
 <p>I am currently open to research collaborations and potential opportunities. Feel free to reach out.</p>
 </section>
 <section class="wowpage-section" id="news">
