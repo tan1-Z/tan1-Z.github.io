@@ -1,7 +1,11 @@
 import {SUITS,tileName,recommendSwap,analyze} from './engine.js';
-import {ROOM_SERVER} from './online-config.js';
+import {ROOM_SERVER,ROOM_SERVERS} from './online-config.js?v=0.2.1';
+import {admissionRequest,admitRoom,admissionError} from './room-api.js?v=0.2.1';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const local=['localhost','127.0.0.1'].includes(location.hostname),base=local?location.origin:ROOM_SERVER;
+const origins=local?[base]:ROOM_SERVERS;
+let serviceOrigin=origins[0],admitting=false,pendingAdmission=null,socketTimer;
+try{pendingAdmission=JSON.parse(sessionStorage.getItem('tingchuan-admission:'+base));}catch{}
 let v=null,credential=null,ws=null,status='未入座',connected=false,selected=[],decision=null,retries=0,retryTimer,heartbeat,lastPong=0,stopped=false,toastTimer,skew=0,reviewIndex=0;
 const pending=new Map(),requested=new URL(location.href).searchParams.get('room')?.toUpperCase()||'';
 const key=code=>`tingchuan-seat:${base}:${code}`;
@@ -44,7 +48,9 @@ function updateClock(){if(!v)return;const el=$('.room-timer');if(el)el.textConte
 setInterval(updateClock,500);
 function connect(){
   if(!credential)return;stopped=false;connected=false;clearTimeout(retryTimer);clearInterval(heartbeat);status=retries?'正在重连…':'连接牌桌…';render();
-  const url=new URL(`${base}/rooms/${credential.code}/socket`);url.protocol=url.protocol==='https:'?'wss:':'ws:';const socket=new WebSocket(url);ws=socket;let authenticated=false;
+  clearTimeout(socketTimer);
+  const url=new URL(`${serviceOrigin}/rooms/${credential.code}/socket`);url.protocol=url.protocol==='https:'?'wss:':'ws:';const socket=new WebSocket(url);ws=socket;let authenticated=false;
+  socketTimer=setTimeout(()=>{if(ws===socket&&!authenticated)socket.close();},12000);
   socket.onopen=()=>{socket.send(JSON.stringify({type:'auth',token:credential.token}));lastPong=Date.now();heartbeat=setInterval(()=>{if(Date.now()-lastPong>50000){socket.close();return;}if(socket.readyState===1)socket.send('ping');},20000);};
   socket.onmessage=event=>{
     if(ws!==socket)return;lastPong=Date.now();if(event.data==='pong')return;
@@ -52,19 +58,19 @@ function connect(){
     if(m.type==='state'){
       if(m.protocol!==1){notice('版本已更新，请刷新网页。');stopped=true;socket.close();return;}
       if(v&&m.revision<v.revision)return;
-      v=m;connected=true;status='已连接 · 实时同步';retries=0;skew=m.serverTime-Date.now();
+      clearTimeout(socketTimer);v=m;connected=true;status='已连接 · 实时同步';retries=0;skew=m.serverTime-Date.now();
       if(decision!==m.decision){decision=m.decision;selected=[];if(m.phase==='swap')reviewIndex=0;}
-      if(!authenticated){authenticated=true;for(const c of pending.values())socket.send(JSON.stringify(c));}
+      if(!authenticated){authenticated=true;credential.server=serviceOrigin;store();for(const c of pending.values())socket.send(JSON.stringify(c));}
       render();updateClock();
     }else if(m.type==='ack'||m.type==='error'){
       if(m.id){pending.delete(m.id);store();}if(m.type==='error')notice(m.message);render();
     }
   };
   socket.onclose=event=>{
-    if(ws!==socket)return;clearInterval(heartbeat);connected=false;
+    if(ws!==socket)return;clearInterval(heartbeat);clearTimeout(socketTimer);connected=false;
     if([1008,4001,4004].includes(event.code)){stopped=true;status=event.code===4001?'此座位已在另一页面打开':event.reason||'座位无法恢复';notice(status);}
     else status='连接中断 · 自动重连中';render();
-    if(!stopped)retryTimer=setTimeout(connect,Math.min(10000,600*2**Math.min(5,retries++))+Math.random()*300);
+    if(!stopped){serviceOrigin=origins[(origins.indexOf(serviceOrigin)+1)%origins.length];retryTimer=setTimeout(connect,Math.min(10000,600*2**Math.min(5,retries++))+Math.random()*300);}
   };
   socket.onerror=()=>{};
 }
@@ -74,19 +80,26 @@ function command(action,extra={}){
   const c={type:'command',id:crypto.randomUUID(),decision:v.decision,action,...extra};pending.set(c.id,c);store();ws.send(JSON.stringify(c));render();
 }
 async function enter(create){
+  if(admitting)return;
   const name=$('#nickname').value.trim()||'牌友',code=$('#room-code').value.trim().toUpperCase();
   if(!create&&!/^[A-Z2-9]{8}$/.test(code)){notice('请输入正确的 8 位房号。');return;}
-  const btn=$(`[data-action="${create?'create':'join'}"]`);btn.disabled=true;
+  if(!pendingAdmission||!/^[a-f0-9]{64}$/.test(pendingAdmission.requestId||'')||pendingAdmission.create!==create||pendingAdmission.name!==name||!create&&pendingAdmission.code!==code)pendingAdmission=admissionRequest(create,name,code);
+  try{sessionStorage.setItem('tingchuan-admission:'+base,JSON.stringify(pendingAdmission));}catch{}
+  admitting=true;const controls=[...document.querySelectorAll('.room-form button,.room-form input')].map(el=>[el,el.disabled]);controls.forEach(([el])=>el.disabled=true);
+  const btn=$(`[data-action="${create?'create':'join'}"]`),label=btn.innerHTML;
+  let feedback=$('#entry-feedback');if(!feedback){feedback=document.createElement('p');feedback.id='entry-feedback';feedback.className='entry-feedback';feedback.setAttribute('role','status');$('.room-form').append(feedback);}
   try{
-    const response=await fetch(`${base}${create?'/rooms':'/rooms/'+code+'/join'}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name}),signal:AbortSignal.timeout(15000)});const body=await response.json();if(!response.ok)throw Error(body.error||'暂时无法入座');
-    credential=body;localStorage.setItem('tingchuan-nickname',name);pending.clear();store();history.replaceState(null,'',`?room=${body.code}`);connect();
-  }catch(e){notice(e.message==='Failed to fetch'?'暂时无法连接房间服务，请稍后重试。':e.message);btn.disabled=false;}
+    const body=await admitRoom(origins,pendingAdmission,{onAttempt:(attempt,total)=>{btn.textContent=`${create?'正在创建':'正在加入'}… ${attempt}/${total}`;feedback.textContent=attempt===1?'正在连接联机服务，请稍候…':'连接较慢，正在尝试备用连接…';}});
+    credential=body;serviceOrigin=body.server;try{localStorage.setItem('tingchuan-nickname',name);sessionStorage.removeItem('tingchuan-admission:'+base);}catch{}
+    pendingAdmission=null;pending.clear();store();history.replaceState(null,'',`?room=${body.code}`);connect();
+  }catch(e){feedback.textContent=admissionError(e);notice(admissionError(e));}
+  finally{admitting=false;controls.forEach(([el,disabled])=>el.disabled=disabled);btn.innerHTML=label;}
 }
 document.addEventListener('click',async event=>{
   const pick=event.target.closest('[data-index]');if(pick){const i=Number(pick.dataset.index);if(v.phase==='swap')selected=selected.includes(i)?selected.filter(x=>x!==i):selected.length<3?[...selected,i]:selected;else selected=[i];render();updateClock();return;}
   const action=event.target.closest('[data-action]')?.dataset.action;if(!action)return;
   if(action==='create'||action==='join')return enter(action==='create');
-  if(action==='resume'){credential=saved();if(credential){store();connect();}return;}
+  if(action==='resume'){credential=saved();if(credential){serviceOrigin=origins.includes(credential.server)?credential.server:origins[0];store();connect();}return;}
   if(action==='reconnect'){retries=0;ws?.close();connect();return;}
   if(action==='home'){stopped=true;clearTimeout(retryTimer);clearInterval(heartbeat);ws?.close();ws=null;credential=null;v=null;connected=false;status='未入座';decision=null;retries=0;selected=[];pending.clear();sessionStorage.removeItem('tingchuan-active-room');history.replaceState(null,'','rooms.html');render();return;}
   if(action==='invite'){const invite=new URL('rooms.html',location.href);invite.searchParams.set('room',credential.code);try{await navigator.clipboard.writeText(invite.href);notice('邀请链接已复制，发给朋友即可入座。');}catch{notice('房号 '+credential.code+'，可从地址栏复制邀请链接。');}return;}
@@ -105,5 +118,5 @@ document.addEventListener('click',async event=>{
   }
 });
 window.addEventListener('online',()=>{if(credential&&!connected&&!stopped)connect();});
-try{const previous=JSON.parse(sessionStorage.getItem('tingchuan-active-room'));if(previous?.base===base&&(!requested||requested===previous.code)){credential={code:previous.code,token:previous.token,seat:previous.seat};for(const c of previous.pending||[])pending.set(c.id,c);}}catch{}
-if(credential)connect();else render();
+try{const previous=JSON.parse(sessionStorage.getItem('tingchuan-active-room'));if(previous?.base===base&&(!requested||requested===previous.code)){credential={code:previous.code,token:previous.token,seat:previous.seat,server:previous.server};for(const c of previous.pending||[])pending.set(c.id,c);}}catch{}
+if(credential){serviceOrigin=origins.includes(credential.server)?credential.server:origins[0];connect();}else render();
