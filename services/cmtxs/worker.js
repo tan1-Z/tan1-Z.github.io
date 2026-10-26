@@ -35,9 +35,13 @@ export class MahjongRoom extends DurableObject {
   }
   async save(){
     if(!this.room)return;
-    await this.ctx.storage.put('room',this.room.serialize());
     const authDeadlines=this.ctx.getWebSockets().map(ws=>ws.deserializeAttachment()).filter(a=>a?.seat==null).map(a=>a.authBy);
-    await this.ctx.storage.setAlarm(Math.min(this.room.nextAlarm(),...authDeadlines));
+    // No await between the two writes: SQLite commits the state and wake-up
+    // atomically, so a process restart cannot leave a saved game without a timer.
+    await Promise.all([
+      this.ctx.storage.put('room',this.room.serialize()),
+      this.ctx.storage.setAlarm(Math.min(this.room.nextAlarm(),...authDeadlines))
+    ]);
   }
   broadcast(){
     for(const ws of this.ctx.getWebSockets()){
