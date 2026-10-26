@@ -1,0 +1,19 @@
+{
+  "name": "tingchuan-rooms",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "dev": "node local-server.mjs",
+    "dev:cloudflare": "wrangler dev --config wrangler.jsonc --install-skills=false",
+    "deploy": "wrangler deploy --config wrangler.jsonc --install-skills=false",
+    "check": "wrangler deploy --config wrangler.jsonc --dry-run --install-skills=false"
+  },
+  "dependencies": {
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.152.0"
+  }
+}

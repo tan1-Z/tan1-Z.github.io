@@ -1,0 +1,6 @@
+node_modules/
+.wrangler/
+.room-data/
+.dev.vars
+.env
+*.log
