@@ -1,5 +1,5 @@
-export const VERSION = '0.1.1';
-export const isCompatibleVersion = version => version==='0.1.0'||version===VERSION;
+export const VERSION = '0.2.0';
+export const isCompatibleVersion = version => ['0.1.0','0.1.1',VERSION].includes(version);
 export const RULES = Object.freeze({ version:'xuezhan-1', cap:5, zimoFan:1, swap:true, dingque:true, huazhu:true, dajiao:true, refund:true, transfer:false, passHu:true });
 export const SUITS = ['万','筒','条'];
 export const tileName = t => `${t % 9 + 1}${SUITS[Math.floor(t / 9)]}`;
@@ -116,8 +116,8 @@ export function recommendSwap(hand){
 }
 export function randomSeed(){const a=new Uint32Array(1);globalThis.crypto.getRandomValues(a);return a[0];}
 function rng(seed){let a=seed>>>0;return()=>{a+=0x6D2B79F5;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
-export function createGame(seed=randomSeed()) {
-  const rand=rng(seed), wall=Array.from({length:108},(_,i)=>Math.floor(i/4));
+export function createGame(seed=randomSeed(),randomSource=null) {
+  const rand=randomSource||rng(seed), wall=Array.from({length:108},(_,i)=>Math.floor(i/4));
   for(let i=107;i>0;i--){const j=Math.floor(rand()*(i+1));[wall[i],wall[j]]=[wall[j],wall[i]];}
   const players=['你','竹隐','云岫','松风'].map((name,seat)=>({name,seat,hand:[],melds:[],discards:[],que:-1,won:false,score:0,passedHuFan:null}));
   for(let n=0;n<13;n++)for(const p of players)p.hand.push(wall.pop());
@@ -127,10 +127,16 @@ export function createGame(seed=randomSeed()) {
 export function snapshot(g){const s=clone(g);s.events=[];return s;}
 function log(g,type,text,extra={}){g.events.push({id:g.events.length,type,text,...extra,state:snapshot(g)});}
 export function swapTiles(g,indices) {
+  return exchangeTiles(g,g.players.map((p,s)=>s===0?indices:recommendSwap(p.hand)));
+}
+// Validate all four submissions before changing any hand.
+export function exchangeTiles(g,chosen) {
   if(g.phase!=='swap')throw Error('当前不能换牌');
-  if(indices.length!==3||new Set(indices).size!==3||indices.some(i=>!Number.isInteger(i)||i<0||i>=g.players[0].hand.length))throw Error('请选择三张牌');
-  const tiles=indices.map(i=>g.players[0].hand[i]);if(new Set(tiles.map(t=>Math.floor(t/9))).size!==1)throw Error('换出的三张牌必须属于同一花色');
-  const chosen=g.players.map((p,s)=>s===0?indices:recommendSwap(p.hand));
+  if(!Array.isArray(chosen)||chosen.length!==4)throw Error('需要四家的换牌');
+  chosen.forEach((indices,s)=>{
+    if(!Array.isArray(indices)||indices.length!==3||new Set(indices).size!==3||indices.some(i=>!Number.isInteger(i)||i<0||i>=g.players[s].hand.length))throw Error('请选择三张牌');
+    const tiles=indices.map(i=>g.players[s].hand[i]);if(new Set(tiles.map(t=>Math.floor(t/9))).size!==1)throw Error('换出的三张牌必须属于同一花色');
+  });
   const packets=chosen.map((arr,s)=>arr.map(i=>g.players[s].hand[i]));
   for(let s=0;s<4;s++){for(const i of [...chosen[s]].sort((a,b)=>b-a))g.players[s].hand.splice(i,1);}
   for(let s=0;s<4;s++)g.players[(s+g.swapDirection)%4].hand.push(...packets[s]);
@@ -138,9 +144,12 @@ export function swapTiles(g,indices) {
   g.phase='que';g.message='换牌完成，请选择本局的定缺花色。';log(g,'swap','四家完成换三张');
 }
 export function setQue(g,suit){
-  if(g.phase!=='que'||![0,1,2].includes(suit))throw Error('当前不能定缺');
-  g.players[0].que=suit;for(let s=1;s<4;s++)g.players[s].que=recommendQue(g.players[s].hand);
-  g.phase='discard';g.drawn=g.players[0].hand.at(-1);g.message='定缺完成，轮到你出牌。';log(g,'que',`你定缺${SUITS[suit]}，开始行牌`);
+  return setAllQue(g,g.players.map((p,s)=>s===0?suit:recommendQue(p.hand)));
+}
+export function setAllQue(g,suits){
+  if(g.phase!=='que'||!Array.isArray(suits)||suits.length!==4||suits.some(s=>![0,1,2].includes(s)))throw Error('当前不能定缺');
+  g.players.forEach((p,s)=>p.que=suits[s]);
+  g.phase='discard';g.drawn=g.players[0].hand.at(-1);g.message='定缺完成，庄家出牌。';log(g,'que','四家定缺完成，开始行牌');
 }
 function pay(g,from,to,amount,reason,kind='win'){
   g.players[from].score-=amount;g.players[to].score+=amount;
@@ -217,7 +226,7 @@ export function restoreGame(g){
 export function discard(g,t,s=g.turn){
   if(g.phase!=='discard'||g.turn!==s||!legalDiscards(g,s).includes(t))throw Error('这张牌当前不能打出，请先打完定缺花色');
   const p=g.players[s];let review=null;
-  if(s===0){const obs=observe(g,s),analysis=analyze(obs);review={obs,analysis,chosen:t};}
+  if((g.reviewSeats||[0]).includes(s)){const obs=observe(g,s),analysis=analyze(obs);review={obs,analysis,chosen:t};}
   p.hand.splice(p.hand.indexOf(t),1);p.discards.push(t);g.last={tile:t,from:s,rob:false};g.phase='respond';g.drawn=null;g.afterKong=false;
   refreshDecision(g);const actions=g.decision?.actions||[];
   g.message=actions.length?`${p.name}打出${tileName(t)}，你可以响应。`:`${p.name}打出${tileName(t)}`;
@@ -248,11 +257,18 @@ function aiClaim(g,s,t,from,rob){
   }return 'pass';
 }
 export function resolveResponse(g,human='pass'){
+  return resolveResponses(g,g.players.map((p,s)=>s===0?human:chooseResponse(g,s)));
+}
+export function chooseResponse(g,s){
+  if(g.phase!=='respond'||!g.last)return 'pass';
+  return aiClaim(g,s,g.last.tile,g.last.from,g.last.rob);
+}
+export function resolveResponses(g,responses){
   if(g.phase!=='respond')throw Error('当前没有待响应的牌');
   const {tile:t,from,rob}=g.last;
   const choices=[];
   for(let n=1;n<4;n++){const s=(from+n)%4;if(g.players[s].won)continue;const allowed=claimOptions(g,s,t,from,rob);
-    const action=s===0?human:aiClaim(g,s,t,from,rob);
+    const action=responses[s];
     if(action!=='pass'&&!allowed.includes(action)){
       if(action==='hu'&&g.players[s].passedHuFan!=null)throw Error(`过手胡限制：接炮须高于${g.players[s].passedHuFan}番，或等待自己摸牌。`);
       throw Error('当前不可进行此操作');
@@ -283,7 +299,7 @@ function completeAddKong(g,s,t){
   log(g,'kong',`${p.name}补杠${tileName(t)}`);draw(g,s,true);
 }
 export function selfAction(g,type,t,s=g.turn){
-  if(!selfActions(g,s).some(a=>a.type===type&&(t===undefined||a.tile===t)))throw Error('当前操作不合法');
+  if(!selfActions(g,s).some(a=>a.type===type&&(type==='hu'||a.tile===t)))throw Error('当前操作不合法');
   const p=g.players[s];
   if(type==='hu'){win(g,s,g.drawn,s,{self:true});if(active(g).length<=1)finish(g);else draw(g,nextSeat(g,s));return;}
   if(type==='ankong'){
