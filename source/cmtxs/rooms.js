@@ -53,7 +53,7 @@ function connect(){
       if(m.protocol!==1){notice('版本已更新，请刷新网页。');stopped=true;socket.close();return;}
       if(v&&m.revision<v.revision)return;
       v=m;connected=true;status='已连接 · 实时同步';retries=0;skew=m.serverTime-Date.now();
-      if(decision!==m.decision){decision=m.decision;selected=[];}
+      if(decision!==m.decision){decision=m.decision;selected=[];if(m.phase==='swap')reviewIndex=0;}
       if(!authenticated){authenticated=true;for(const c of pending.values())socket.send(JSON.stringify(c));}
       render();updateClock();
     }else if(m.type==='ack'||m.type==='error'){
@@ -88,7 +88,7 @@ document.addEventListener('click',async event=>{
   if(action==='create'||action==='join')return enter(action==='create');
   if(action==='resume'){credential=saved();if(credential){store();connect();}return;}
   if(action==='reconnect'){retries=0;ws?.close();connect();return;}
-  if(action==='home'){stopped=true;clearTimeout(retryTimer);clearInterval(heartbeat);ws?.close();ws=null;credential=null;v=null;selected=[];pending.clear();sessionStorage.removeItem('tingchuan-active-room');history.replaceState(null,'','rooms.html');render();return;}
+  if(action==='home'){stopped=true;clearTimeout(retryTimer);clearInterval(heartbeat);ws?.close();ws=null;credential=null;v=null;connected=false;status='未入座';decision=null;retries=0;selected=[];pending.clear();sessionStorage.removeItem('tingchuan-active-room');history.replaceState(null,'','rooms.html');render();return;}
   if(action==='invite'){const invite=new URL('rooms.html',location.href);invite.searchParams.set('room',credential.code);try{await navigator.clipboard.writeText(invite.href);notice('邀请链接已复制，发给朋友即可入座。');}catch{notice('房号 '+credential.code+'，可从地址栏复制邀请链接。');}return;}
   if(action==='suggest-swap'){selected=recommendSwap(v.game.players[v.seat].hand);render();return;}
   if(action==='ready'||action==='start')return command(action);
