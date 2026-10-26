@@ -16,7 +16,11 @@ export default {
     try{
       if(u.pathname==='/rooms'&&request.method==='POST'){
         if(Number(request.headers.get('Content-Length'))>2048)return cors(json({error:'请求过大'},413),request);
-        const code=roomCode();response=await env.ROOMS.getByName(code).fetch(new Request(new URL('/init?code='+code,u),request));
+        const raw=await request.text();if(raw.length>2048)return cors(json({error:'请求过大'},413),request);
+        let body;try{body=JSON.parse(raw);}catch{return cors(json({error:'请求格式无效'},400),request);}
+        const code=body.requestId?body.code:roomCode();
+        if(!/^[A-Z2-9]{8}$/.test(code||''))return cors(json({error:'房间号无效'},400),request);
+        response=await env.ROOMS.getByName(code).fetch(new Request(new URL('/init?code='+code,u),{method:'POST',headers:request.headers,body:raw}));
       }else{
         const match=u.pathname.match(/^\/rooms\/([A-Z2-9]{8})\/(join|socket)$/);
         if(!match)return cors(json({error:'地址不存在'},404),request);
@@ -53,14 +57,13 @@ export class MahjongRoom extends DurableObject {
     try{
       const u=new URL(request.url);
       if(u.pathname==='/init'&&request.method==='POST'){
-        if(this.room)return json({error:'房间编号冲突，请重试'},409);
         const body=await request.text();if(body.length>2048)return json({error:'请求过大'},413);
-        this.room=new Room();const credential=this.room.init(u.searchParams.get('code'),JSON.parse(body).name);await this.save();return json(credential);
+        const input=JSON.parse(body);this.room??=new Room();const credential=this.room.init(u.searchParams.get('code'),input.name,input.requestId);await this.save();return json(credential);
       }
       if(!this.room||this.room.expired())return json({error:'房间不存在或已过期'},404);
       if(u.pathname==='/join'&&request.method==='POST'){
         const body=await request.text();if(body.length>2048)return json({error:'请求过大'},413);
-        const credential=this.room.join(JSON.parse(body).name);await this.save();this.broadcast();return json(credential);
+        const input=JSON.parse(body),credential=this.room.join(input.name,input.requestId);await this.save();this.broadcast();return json(credential);
       }
       if(u.pathname==='/socket'&&request.headers.get('Upgrade')?.toLowerCase()==='websocket'){
         if(this.ctx.getWebSockets().length>=12)return json({error:'连接过多，请稍后重试'},429);

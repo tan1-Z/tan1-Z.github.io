@@ -11,17 +11,31 @@ export class Room {
   constructor(data=null,{now=Date.now,random=secure,timeout=30000,botDelay=700}={}){
     this.now=now;this.random=random;this.timeout=timeout;this.botDelay=botDelay;
     this.d=data?copy(data):{protocol:PROTOCOL,code:'',created:now(),updated:now(),expires:now()+86400000,revision:0,decision:0,members:Array(4).fill(null),game:null,submissions:{},deadline:null,botAt:null,reviews:[],recent:[]};
+    this.d.admissions??=[];
   }
-  init(code,name){if(this.d.code)fail('房间已存在');this.d.code=code;return this.join(name);}
+  admission(requestId){
+    if(requestId==null)return null;
+    if(typeof requestId!=='string'||!/^[a-f0-9]{64}$/.test(requestId))fail('入座请求无效，请刷新后重试');
+    const previous=this.d.admissions.find(a=>a.id===requestId);
+    return previous?this.credential(previous.seat):null;
+  }
+  credential(seat){return {code:this.d.code,token:this.d.members[seat].token,seat,protocol:PROTOCOL};}
+  init(code,name,requestId=null){
+    this.check();const previous=this.admission(requestId);
+    if(this.d.code){if(previous&&previous.seat===0&&code===this.d.code)return previous;fail('房间号已存在，请重新创建');}
+    this.d.code=code;return this.join(name,requestId);
+  }
   serialize(){return copy(this.d);}
   expired(){return this.now()>this.d.expires;}
   check(){if(this.expired())fail('房间已过期，请重新创建');}
   bump(){this.d.revision++;this.d.updated=this.now();}
   seat(token){if(typeof token!=='string'||token.length!==64)return -1;return this.d.members.findIndex(m=>m?.token===token);}
-  join(name){
-    this.check();if(this.d.game)fail('对局已开始，只能由原玩家重连');
+  join(name,requestId=null){
+    this.check();const previous=this.admission(requestId);if(previous)return previous;
+    if(this.d.game)fail('对局已开始，只能由原玩家重连');
     const seat=this.d.members.findIndex(m=>!m);if(seat<0)fail('房间已满');
-    const token=secret();this.d.members[seat]={name:cleanName(name),token,ready:false,online:false,auto:false,commands:[]};this.bump();return {code:this.d.code,token,seat,protocol:PROTOCOL};
+    const token=secret();this.d.members[seat]={name:cleanName(name),token,ready:false,online:false,auto:false,commands:[]};
+    if(requestId)this.d.admissions.push({id:requestId,seat});this.bump();return this.credential(seat);
   }
   presence(seat,online){const m=this.d.members[seat];if(!m)return;if(m.online!==online){m.online=online;this.bump();}}
   pending(seat){

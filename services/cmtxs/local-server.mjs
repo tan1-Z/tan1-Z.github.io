@@ -20,8 +20,12 @@ export async function startServer({port=4173,dataDir=null,timeout=30000,botDelay
       if(req.method==='POST'){
         let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)return send(413,{error:'请求过大'});}
         const body=JSON.parse(raw),m=u.pathname.match(/^\/rooms\/([A-Z2-9]{8})\/join$/);let r,credential;
-        if(u.pathname==='/rooms'){let code;do{code=roomCode();}while(rooms.has(code));r=new Room(null,{timeout,botDelay});credential=r.init(code,body.name);rooms.set(code,r);}
-        else if(m){r=rooms.get(m[1]);if(!r)return send(404,{error:'房间不存在'});credential=r.join(body.name);}
+        if(u.pathname==='/rooms'){
+          let code=body.requestId?body.code:null;if(code&&!/^[A-Z2-9]{8}$/.test(code))throw Error('房间号无效');
+          if(!code)do{code=roomCode();}while(rooms.has(code));
+          r=rooms.get(code)||new Room(null,{timeout,botDelay});credential=r.init(code,body.name,body.requestId);rooms.set(code,r);
+        }
+        else if(m){r=rooms.get(m[1]);if(!r)return send(404,{error:'房间不存在'});credential=r.join(body.name,body.requestId);}
         else return send(404,{error:'地址不存在'});
         await persist(r);broadcast(r);return send(200,credential);
       }
@@ -61,7 +65,7 @@ export async function startServer({port=4173,dataDir=null,timeout=30000,botDelay
   });
   const timer=setInterval(()=>serial(async()=>{for(const r of rooms.values())if(r.tick()){await persist(r);broadcast(r);}}),100);timer.unref();
   await new Promise(resolve=>server.listen(port,'127.0.0.1',resolve));
-  return {port:server.address().port,rooms,close:async()=>{clearInterval(timer);for(const ws of sockets.keys())ws.terminate();await queue;await new Promise(resolve=>wss.close(resolve));await new Promise(resolve=>server.close(resolve));}};
+  return {port:server.address().port,rooms,close:async()=>{clearInterval(timer);const stopped=new Promise(resolve=>server.close(resolve));for(const ws of sockets.keys())ws.terminate();await new Promise(resolve=>wss.close(resolve));await queue;await stopped;}};
 }
 if(process.argv[1]===fileURLToPath(import.meta.url)){
   const s=await startServer({port:Number(process.env.PORT||4173),dataDir:process.env.ROOM_DATA_DIR||path.resolve('.room-data')});console.log(`听川联机服务 http://127.0.0.1:${s.port}/rooms.html`);
