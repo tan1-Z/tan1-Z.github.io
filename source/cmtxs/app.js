@@ -1,32 +1,10 @@
 import { VERSION,RULES,SUITS,tileName,sorted,counts,createGame,recommendSwap,recommendQue,swapTiles,setQue,observe,analyze,shanten,legalDiscards,selfActions,selfAction,discard,resolveResponse,aiStep,scoreHand,isWinning,assertGame,isCompatibleVersion,restoreGame,refreshDecision,normalizeRules,modeName,meldTiles,isQueTile,clearQue,waits } from './engine.js?v=0.3.0';
 import {variantPicker,variantHint,claimLabel,selfLabel,meldCaption} from './variants-ui.js?v=0.3.0';
 
+import {icon,PAGE_TITLES,pageFromHash,renderSidebar,renderHeader,renderFooter} from './ui-shell.js?v=0.3.2';
+
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const icons={
-  table:'<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 3v18M3 9h5M12 8h5m-5 4h5m-5 4h3"/>',
-  review:'<path d="M4 4h12a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3V4Z"/><path d="M4 16h15M8 8h7m-7 4h5M21 5v12"/>',
-  train:'<path d="m12 3 3 6 6 3-6 3-3 6-3-6-6-3 6-3 3-6Z"/><path d="M12 8v8m-4-4h8"/>',
-  users:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2m1-15a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 4v2"/>',
-  rules:'<path d="M5 4h14v17l-7-4-7 4V4Z"/><path d="M9 8h6m-6 4h6"/>',
-  plus:'<path d="M12 5v14M5 12h14"/>',
-  help:'<circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 4m0 3h.01"/>',
-  sound:'<path d="m11 5-6 4H2v6h3l6 4V5Z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>',
-  mute:'<path d="m11 5-6 4H2v6h3l6 4V5Z"/><path d="m16 9 6 6m-6 0 6-6"/>',
-  arrow:'<path d="M4 12h16m-6-6 6 6-6 6"/>',
-  back:'<path d="m14 6-6 6 6 6"/>',
-  forward:'<path d="m10 6 6 6-6 6"/>',
-  spark:'<path d="m12 3 2.6 6.4L21 12l-6.4 2.6L12 21l-2.6-6.4L3 12l6.4-2.6L12 3Z"/>',
-  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10h.01"/>',
-  leaf:'<path d="M19 3C6 3 2 8 6 14s13 1 13-11Z"/><path d="m5 20 10-11"/>',
-  download:'<path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/>',
-  upload:'<path d="M12 16V4m-5 5 5-5 5 5M4 16v5h16v-5"/>',
-  close:'<path d="m6 6 12 12M6 18 18 6"/>',
-  pause:'<path d="M8 5v14M16 5v14"/>',
-  play:'<path d="m8 4 12 8-12 8V4Z"/>',
-  check:'<path d="m5 12 4 4L20 5"/>',
-};
-const icon=(name)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name]||icons.info}</svg>`;
 const btn=(label,action,cls='',disabled=false)=>`<button type="button" class="button ${cls}" data-action="${action}" ${disabled?'disabled':''}>${label}</button>`;
 
 function tileSVG(t){
@@ -43,7 +21,7 @@ const KEY='tingchuan-v1',ARCHIVE='tingchuan-archive-v1';
 let game,archive=[];
 try{const saved=JSON.parse(localStorage.getItem(KEY));game=isCompatibleVersion(saved?.version)?restoreGame(saved):null;archive=JSON.parse(localStorage.getItem(ARCHIVE)||'[]').filter(g=>isCompatibleVersion(g?.version)).map(restoreGame);}catch{}
 if(!game)game=createGame();
-let page='live',selected=[],speed=650,paused=false,sound=false,timer,toastTimer,reviewIndex=0,reviewSeed=null,settledSeed=null,trainIndex=0,trainChoice=null;
+let page=pageFromHash(location.hash),selected=[],speed=650,paused=false,sound=false,timer,toastTimer,reviewIndex=0,reviewSeed=null,settledSeed=null,trainIndex=0,trainChoice=null;
 let analysisCache={key:'',data:[]};
 function save(){try{localStorage.setItem(KEY,JSON.stringify(game));localStorage.setItem(ARCHIVE,JSON.stringify(archive.slice(0,3)));}catch{toast('本机存储已满，可先导出牌谱再清理历史。');}}
 function toast(message){$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),3300);}
@@ -60,13 +38,10 @@ function shantenText(n){return n<0?'已成和':n===0?'已听牌':`${n}向听`;}
 function playerShanten(p,rules=game.rules){return shanten(p.hand.filter(t=>!isQueTile(t,p.que,rules)),p.melds.length,rules);}
 function reviewGrade(review){const best=review.analysis[0],actual=review.analysis.find(x=>x.tile===review.chosen);if(!actual||!best)return {label:'已记录',good:true};if(actual.shanten===best.shanten&&actual.ukeire===best.ukeire)return {label:'牌效推荐',good:true};return {label:actual.shanten>best.shanten?'向听退步':'进张较少',good:false};}
 function latestReview(){return [...game.events].reverse().find(e=>e.review)?.review;}
-function navigation(){
-  return [['live','table','人机练习'],['rooms','users','好友开房'],['review','review','逐步复盘'],['train','train','何切训练'],['rules','rules','规则手册']].map(([id,ico,label])=>id==='rooms'?`<a class="navbutton" href="./rooms.html" style="text-decoration:none">${icon(ico)}<span>${label}</span></a>`:`<button type="button" class="navbutton ${page===id?'active':''}" data-page="${id}" ${page===id?'aria-current="page"':''}>${icon(ico)}<span>${label}</span></button>`).join('');
-}
 function render(){
-  refreshDecision(game);
-  const titles={live:'人机练习',review:'逐步复盘',train:'何切训练',rules:'规则手册'};
-  $('#app').innerHTML=`<div class="shell"><aside class="sidebar"><div class="brand"><div class="brandmark">听</div><div><div class="brandname">听川</div><div class="brandlatin">TINGCHUAN</div></div></div><div class="navlabel">川 麻 研 习 室</div><nav class="nav" aria-label="主导航">${navigation()}</nav><div class="sidebar-note"><div class="line"></div>一张一弛，<br>慢慢听见牌的答案。</div><div class="sidebar-foot"><span><i class="statusdot"></i>本地研习</span><span>v${VERSION}</span></div></aside><main class="main"><header class="topbar"><div class="breadcrumb"><span>研习室</span><span>/</span><strong>${titles[page]}</strong></div><div class="mobile-brand">听川<small>川麻研习室</small></div><div class="top-actions"><span class="rule-pill">${icon('leaf')}血战到底 · 自摸加番 · 五番满</span><span class="divider"></span><button type="button" class="iconbutton" data-action="sound" title="${sound?'关闭':'开启'}音效" aria-label="${sound?'关闭':'开启'}音效">${icon(sound?'sound':'mute')}</button><button type="button" class="iconbutton" data-action="help" aria-label="操作帮助">${icon('help')}</button><span class="iconbutton user-avatar" title="本地玩家">研</span></div></header><div class="content">${page==='live'?livePage():page==='review'?reviewPage():page==='train'?trainPage():rulesPage()}<footer class="footer"><span class="wordmark">听川 · 以牌会意</span><span>牌效基线 v${VERSION} · 对局仅保存在本机</span></footer></div></main></div>`;
+  refreshDecision(game);document.title=PAGE_TITLES[page]+' · 听川';
+  const controls=`<button type="button" class="iconbutton" data-action="sound" title="${sound?'关闭':'开启'}音效" aria-label="${sound?'关闭':'开启'}音效">${icon(sound?'sound':'mute')}</button><button type="button" class="iconbutton" data-action="help" aria-label="操作帮助">${icon('help')}</button><span class="iconbutton user-avatar" title="本地玩家">研</span>`;
+  $('#app').innerHTML=`<div class="shell">${renderSidebar(page)}<main class="main">${renderHeader(page,controls)}<div class="content">${page==='live'?livePage():page==='review'?reviewPage():page==='train'?trainPage():rulesPage()}${renderFooter()}</div></main></div>`;
   if(page==='live')schedule();
 }
 function intro(eyebrow,title,desc,actions=''){return `<section class="intro"><div><div class="eyebrow">${eyebrow}</div><h1>${title}</h1><p>${desc}</p></div><div class="intro-actions">${actions}</div></section>`;}
@@ -148,7 +123,7 @@ function schedule(){
 }
 function checkEnd(){if(game.phase==='ended'){storeArchive(game);if(settledSeed!==game.seed&&page==='live'){settledSeed=game.seed;settlement();}}}
 function act(fn){try{clearTimeout(timer);fn();selected=[];playSound();assertGame(game);save();render();checkEnd();}catch(e){toast(e.message);schedule();}}
-function changePage(id){clearTimeout(timer);page=id;selected=[];if(id==='review')reviewIndex=Math.min(reviewIndex,Math.max(0,getReviewGame().events.filter(e=>e.review).length-1));render();window.scrollTo({top:0,behavior:'instant'});}
+function changePage(id,syncUrl=true){clearTimeout(timer);page=id;selected=[];if(syncUrl){const hash=id==='live'?'':'#'+id;if(location.hash!==hash)history.pushState(null,'',location.pathname+location.search+hash);}if(id==='review')reviewIndex=Math.min(reviewIndex,Math.max(0,getReviewGame().events.filter(e=>e.review).length-1));render();window.scrollTo({top:0,behavior:'instant'});}
 function openModal(title,body){clearTimeout(timer);$('#modal-root').innerHTML=`<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-head"><h2>${title}</h2><button type="button" class="iconbutton" data-action="close-modal" aria-label="关闭弹窗">${icon('close')}</button></div><div class="modal-body">${body}</div></section></div>`;setTimeout(()=>$('#modal-root button')?.focus(),0);}
 function closeModal(){ $('#modal-root').innerHTML='';schedule();}
 function settlement(){
@@ -156,12 +131,12 @@ function settlement(){
   openModal('这一局，落定了。',`<p>${game.wall.length?'三家已胡，血战结束。':'牌墙摸完，查花猪、查大叫与退税已结算。'}牌谱已自动保存在本机。</p>${players.map((p,i)=>`<div class="settle-row"><span class="review-number">0${i+1}</span><span class="avatar">${p.name[0]}</span><span>${p.name}<br><small>${p.win?p.win.tags.map(t=>t.name).join(' · ')+' / '+p.win.fan+' 番':!clearQue(p,game.rules)?'未清缺门':waits(p,game.rules).length?'已听牌':'未听牌'}</small></span><strong class="${p.score>=0?'positive':'negative'}">${p.score>0?'+':''}${p.score}</strong></div>`).join('')}<div class="ledger">${game.ledger.length?game.ledger.map(l=>`<div><span>${game.players[l.from].name} → ${game.players[l.to].name} · ${l.reason}</span><span>${l.amount} 分</span></div>`).join(''):'本局没有分数转移。'}</div><div class="modal-actions">${btn('再开一局','confirm-new')}${btn('逐步复盘','modal-review','primary')}</div>`);
 }
 function exportGame(g){const payload={format:'tingchuan-replay',version:VERSION,exportedAt:new Date().toISOString(),rules:normalizeRules(g.rules),game:g};const blob=new Blob([JSON.stringify(payload)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`听川-牌谱-${g.seed}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('牌谱已导出，可以在复盘页重新导入。');}
-function importModal(){openModal('带回一份牌谱。',`<p>支持听川 v0.1.0 至 v${VERSION} 导出的 JSON 牌谱。导入后保留当前对局，在复盘页打开。</p><input type="file" id="replay-file" accept=".json,application/json" aria-label="选择牌谱文件"><div class="disclaimer">牌谱包含本地完整对局状态，仅用于离线复盘。当前没有多人游戏与在线分享服务。</div>`);}
+function importModal(){openModal('带回一份牌谱。',`<p>支持听川 v0.1.0 至 v${VERSION} 导出的 JSON 牌谱。导入后保留当前对局，在复盘页打开。</p><input type="file" id="replay-file" accept=".json,application/json" aria-label="选择牌谱文件"><div class="disclaimer">本地完整牌谱用于离线复盘；好友房的个人复盘可在联机对局结算后查看。</div>`);}
 function newGame(){openModal('选择本局玩法',`<p>选择麻将玩法和开局方式。当前牌局会保留在历史中，方便复盘。</p>${variantPicker(normalizeRules(game.rules))}<div class="modal-actions">${btn('返回当前局','close-modal')}${btn('开始新局','confirm-new','primary')}</div>`);}
 function startNew(){storeArchive(game);game=createGame(undefined,null,$('#variant-joker')?{joker:$('#variant-joker').value==='true',swap:$('#variant-swap').value==='true'}:game.rules);selected=[];paused=false;settledSeed=null;reviewSeed=null;reviewIndex=0;analysisCache={key:'',data:[]};closeModal();save();changePage('live');}
 
 document.addEventListener('click',e=>{
-  const nav=e.target.closest('[data-page]');if(nav){changePage(nav.dataset.page);return;}
+  const nav=e.target.closest('[data-page]');if(nav){if(nav.tagName==='A'){if(e.button!==0||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;e.preventDefault();}changePage(nav.dataset.page);return;}
   const ri=e.target.closest('[data-review-index]');if(ri){reviewIndex=Number(ri.dataset.reviewIndex);render();return;}
   const ht=e.target.closest('[data-tile-index]');if(ht){
     const i=Number(ht.dataset.tileIndex);if(paused)return;
@@ -219,9 +194,12 @@ function validateImportedGame(g){
 document.addEventListener('input',e=>{if(e.target.id==='review-range'){reviewIndex=Number(e.target.value);render();}});
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){if($('#modal-root').children.length)closeModal();else{selected=[];render();}}
-  if(e.key==='Enter'&&page==='live'&&!$('#modal-root').children.length&&!paused&&selected.length===1&&game.phase==='discard'&&game.turn===0){e.preventDefault();act(()=>discard(game,game.players[0].hand[selected[0]]));}
+  if(e.key==='Enter'&&!e.target.closest('a,input,select,textarea,button:not([data-tile-index])')&&page==='live'&&!$('#modal-root').children.length&&!paused&&selected.length===1&&game.phase==='discard'&&game.turn===0){e.preventDefault();act(()=>discard(game,game.players[0].hand[selected[0]]));}
   if(e.key==='Tab'&&$('#modal-root').children.length){const focusable=[...$('#modal-root').querySelectorAll('button,input,select,a')].filter(el=>!el.disabled);const first=focusable[0],last=focusable.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}
 });
+const syncPageFromURL=()=>changePage(pageFromHash(location.hash),false);
+window.addEventListener('popstate',syncPageFromURL);
+window.addEventListener('hashchange',()=>{if(page!==pageFromHash(location.hash))syncPageFromURL();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)clearTimeout(timer);else schedule();});
 window.addEventListener('beforeunload',()=>save());
 render();save();
