@@ -1,4 +1,4 @@
-import {VERSION,RULES,createGame,recommendSwap,recommendQue,exchangeTiles,setAllQue,legalDiscards,selfActions,selfAction,discard,responseActions,chooseResponse,resolveResponses,analyze,observe,assertGame} from '../../source/cmtxs/engine.js';
+import {VERSION,RULES,normalizeRules,createGame,recommendSwap,recommendQue,exchangeTiles,setAllQue,legalDiscards,selfActions,chooseSelfAction,selfAction,discard,responseActions,chooseResponse,resolveResponses,analyze,observe,assertGame} from '../../source/cmtxs/engine.js';
 
 export const PROTOCOL=1;
 const copy=x=>structuredClone(x);
@@ -12,6 +12,7 @@ export class Room {
     this.now=now;this.random=random;this.timeout=timeout;this.botDelay=botDelay;
     this.d=data?copy(data):{protocol:PROTOCOL,code:'',created:now(),updated:now(),expires:now()+86400000,revision:0,decision:0,members:Array(4).fill(null),game:null,submissions:{},deadline:null,botAt:null,reviews:[],recent:[]};
     this.d.admissions??=[];
+    this.d.rules=normalizeRules(this.d.rules);
   }
   admission(requestId){
     if(requestId==null)return null;
@@ -48,8 +49,8 @@ export class Room {
     this.d.decision++;this.d.submissions={};this.d.deadline=this.now()+this.timeout;this.d.botAt=null;
     const g=this.d.game;if(!g||g.phase==='ended'){this.d.deadline=null;return;}
     for(let s=0;s<4;s++)if(!this.d.members[s]||this.d.members[s].auto){
-      if(g.phase==='swap')this.d.submissions[s]=recommendSwap(g.players[s].hand);
-      if(g.phase==='que')this.d.submissions[s]=recommendQue(g.players[s].hand);
+      if(g.phase==='swap')this.d.submissions[s]=recommendSwap(g.players[s].hand,g.rules);
+      if(g.phase==='que')this.d.submissions[s]=recommendQue(g.players[s].hand,g.rules);
       if(g.phase==='respond')this.d.submissions[s]=chooseResponse(g,s);
     }
     if(g.phase==='discard'&&(!this.d.members[g.turn]||this.d.members[g.turn].auto))this.d.botAt=this.now()+this.botDelay;
@@ -72,17 +73,17 @@ export class Room {
     }
   }
   playDiscard(seat,tile){
-    const g=this.d.game;if(!legalDiscards(g,seat).includes(tile))fail('请先打完定缺花色');
+    const g=this.d.game;if(!legalDiscards(g,seat).includes(tile))fail(g.rules?.joker&&tile===18?'幺鸡是万能牌，不能打出':'请先打完定缺花色');
     const obs=observe(g,seat);discard(g,tile,seat);this.d.reviews.push({seat,obs,chosen:tile});
   }
   automate(seat){
     const g=this.d.game;
-    if(g.phase==='swap')this.d.submissions[seat]=recommendSwap(g.players[seat].hand);
-    else if(g.phase==='que')this.d.submissions[seat]=recommendQue(g.players[seat].hand);
+    if(g.phase==='swap')this.d.submissions[seat]=recommendSwap(g.players[seat].hand,g.rules);
+    else if(g.phase==='que')this.d.submissions[seat]=recommendQue(g.players[seat].hand,g.rules);
     else if(g.phase==='respond')this.d.submissions[seat]=chooseResponse(g,seat);
     else if(g.phase==='discard'){
-      const actions=selfActions(g,seat),a=actions.find(x=>x.type==='hu')||actions[0];
-      if(a)selfAction(g,a.type,a.tile,seat);else this.playDiscard(seat,analyze(observe(g,seat))[0].tile);
+      const a=chooseSelfAction(g,seat);
+      if(a)selfAction(g,a.type,a.tile,seat,a.jokers??0);else this.playDiscard(seat,analyze(observe(g,seat))[0].tile);
       this.collectLogs();this.newDecision();
     }
   }
@@ -91,12 +92,16 @@ export class Room {
     if(!c||typeof c.id!=='string'||!/^[\w-]{1,80}$/.test(c.id))fail('操作编号无效');
     if(m.commands.includes(c.id))return {id:c.id,duplicate:true};
     const g=this.d.game;
-    if(c.action==='ready'){
+    if(c.action==='configure'){
+      if(seat!==0)fail('只有房主可以修改玩法');if(g&&g.phase!=='ended')fail('本局已开始，不能更改玩法');
+      if(!c.rules||typeof c.rules.swap!=='boolean'||typeof c.rules.joker!=='boolean'||Object.keys(c.rules).some(k=>!['swap','joker'].includes(k)))fail('玩法设置无效');
+      this.d.rules=normalizeRules(c.rules);this.d.members.forEach(p=>{if(p)p.ready=false;});
+    }else if(c.action==='ready'){
       if(g&&g.phase!=='ended')fail('本局已开始');m.ready=!m.ready;
     }else if(c.action==='start'){
       if(seat!==0)fail('只有房主可以开局');if(g&&g.phase!=='ended')fail('本局已开始');
       if(this.d.members.some(p=>p&&!p.ready))fail('请等待所有真人准备');
-      this.d.game=createGame(0,this.random);this.d.game.reviewSeats=[];this.d.reviews=[];this.d.recent=[];
+      this.d.game=createGame(0,this.random,this.d.rules);this.d.game.reviewSeats=[];this.d.reviews=[];this.d.recent=[];
       this.d.members.forEach((p,s)=>{if(p){p.auto=false;p.ready=false;}this.d.game.players[s].name=p?.name||['竹隐','云岫','松风','清和'][s];});
       this.newDecision();this.advance();
     }else if(c.action==='auto'){
@@ -112,7 +117,7 @@ export class Room {
       if(m.auto)fail('请先取消托管');if(!this.pending(seat))fail('已提交或尚未轮到你');
       if(c.action==='swap'&&g.phase==='swap'){
         // Reuse the engine's atomic validation on a temporary game.
-        const chosen=g.players.map((p,s)=>s===seat?c.indices:recommendSwap(p.hand));exchangeTiles(copy(g),chosen);
+        const chosen=g.players.map((p,s)=>s===seat?c.indices:recommendSwap(p.hand,g.rules));exchangeTiles(copy(g),chosen);
         this.d.submissions[seat]=copy(c.indices);this.advance();
       }else if(c.action==='que'&&g.phase==='que'){
         if(![0,1,2].includes(c.suit))fail('定缺无效');this.d.submissions[seat]=c.suit;this.advance();
@@ -122,7 +127,7 @@ export class Room {
       }else if(c.action==='discard'&&g.phase==='discard'){
         this.playDiscard(seat,c.tile);this.collectLogs();this.newDecision();this.advance();
       }else if(c.action==='self'&&g.phase==='discard'){
-        selfAction(g,c.choice,c.tile,seat);this.collectLogs();this.newDecision();this.advance();
+        selfAction(g,c.choice,c.tile,seat,c.jokers??0);this.collectLogs();this.newDecision();this.advance();
       }else fail('操作与当前阶段不符');
     }
     m.commands.push(c.id);m.commands=m.commands.slice(-128);this.bump();return {id:c.id};
@@ -140,10 +145,10 @@ export class Room {
   nextAlarm(){return Math.min(...[this.d.expires,this.d.deadline,this.d.botAt].filter(x=>x!=null));}
   view(seat){
     const d=this.d,g=d.game,m=d.members[seat];
-    const view={type:'state',protocol:PROTOCOL,version:VERSION,code:d.code,revision:d.revision,decision:d.decision,serverTime:this.now(),expires:d.expires,seat,host:0,rules:RULES,deadline:d.deadline,phase:g?.phase||'lobby',pending:this.pending(seat),submitted:Object.hasOwn(d.submissions,seat),
+    const view={type:'state',protocol:PROTOCOL,version:VERSION,code:d.code,revision:d.revision,decision:d.decision,serverTime:this.now(),expires:d.expires,seat,host:0,rules:normalizeRules(g&&g.phase!=='ended'?g.rules:d.rules),deadline:d.deadline,phase:g?.phase||'lobby',pending:this.pending(seat),submitted:Object.hasOwn(d.submissions,seat),
       members:d.members.map((p,s)=>p?{name:p.name,ready:p.ready,online:p.online,auto:p.auto,bot:false}:{name:['竹隐','云岫','松风','清和'][s],ready:true,online:true,auto:true,bot:true})};
     if(!g)return view;
-    view.game={phase:g.phase,turn:g.turn,remaining:g.wall.length,last:copy(g.last),swapDirection:g.swapDirection,winners:[...g.winners],
+    view.game={phase:g.phase,turn:g.turn,rules:normalizeRules(g.rules),remaining:g.wall.length,last:copy(g.last),swapDirection:g.swapDirection,winners:[...g.winners],
       players:g.players.map((p,s)=>({seat:s,name:p.name,handCount:p.hand.length,hand:s===seat||p.won||g.phase==='ended'?[...p.hand]:null,melds:copy(p.melds),discards:[...p.discards],que:g.phase==='que'?-1:p.que,won:p.won,score:p.score,win:p.win?copy(p.win):null,passedHuFan:s===seat?p.passedHuFan:undefined})),ledger:copy(g.ledger),recent:copy(d.recent)};
     view.options={discards:g.phase==='discard'&&g.turn===seat?legalDiscards(g,seat):[],self:selfActions(g,seat),responses:responseActions(g,seat)};
     // The hand history contains only this seat's observations, released after settlement.
