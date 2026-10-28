@@ -4,14 +4,10 @@ import {variantPicker,variantHint,claimLabel,selfLabel,meldCaption} from './vari
 import {icon,PAGE_TITLES,pageFromHash,renderSidebar,renderHeader,renderFooter} from './ui-shell.js?v=0.3.2';
 
 import {renderDiscardArena,renderMeldBadges} from './table-ui.js?v=0.3.3';
+import {tileFace as tileSVG} from './tile-faces.js?v=0.3.4';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const btn=(label,action,cls='',disabled=false)=>`<button type="button" class="button ${cls}" data-action="${action}" ${disabled?'disabled':''}>${label}</button>`;
-
-function tileSVG(t){
-  const name=(t%9+1)+['m','p','s'][Math.floor(t/9)];
-  return '<img src="./assets/tiles/'+name+'.svg" alt="'+tileName(t)+'" draggable="false" width="40" height="56">';
-}
 
 function tile(t,{index,selected=false,forced=false,suggested=false,small=false,action='',last=false,joker=false}={}){
   const interactive=index!==undefined||action;
@@ -207,5 +203,5 @@ window.addEventListener('beforeunload',()=>save());
 render();save();
 
 function tileGallery(){
-  openModal('万、筒、条，一张不差。', '<p>本桌使用中文麻将牌面，三门各九种，每种四张，共 108 张。</p>'+[0,1,2].map(s=>'<div class="tile-gallery-row"><div class="tile-gallery-label">'+SUITS[s]+'子</div><div class="tile-gallery-grid">'+Array.from({length:9},(_,n)=>'<div>'+tile(s*9+n)+'<small>'+tileName(s*9+n)+'</small></div>').join('')+'</div></div>').join('')+'<p class="asset-credit">牌面：<a href="https://github.com/lietxia/mahjong_graphic" target="_blank" rel="noopener noreferrer">lietxia / mahjong_graphic</a> · M+ 字型授权条款。保留原始牌面排列与颜色。</p>');
+  openModal('万、筒、条，一张不差。', '<p>本桌使用实物川麻风格牌面，三门各九种，每种四张，共 108 张。</p>'+[0,2,1].map(s=>'<div class="tile-gallery-row"><div class="tile-gallery-label">'+SUITS[s]+'子</div><div class="tile-gallery-grid">'+Array.from({length:9},(_,n)=>'<div>'+tile(s*9+n)+'<small>'+tileName(s*9+n)+'</small></div>').join('')+'</div></div>').join('')+'<p class="asset-credit">黑字红萬、竹节条子与红绿黑筒子，按川麻实物参考重绘为矢量牌面。人机对战、好友房和复盘共用同一套牌面。</p>');
 }

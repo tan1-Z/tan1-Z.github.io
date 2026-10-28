@@ -4,6 +4,7 @@ import {ROOM_SERVER,ROOM_SERVERS} from './online-config.js?v=0.2.1';
 import {admissionRequest,admitRoom,admissionError} from './room-api.js?v=0.2.1';
 import {icon,renderSidebar,renderHeader,renderFooter} from './ui-shell.js?v=0.3.2';
 import {renderDiscardArena,renderMeldBadges} from './table-ui.js?v=0.3.3';
+import {tileFace} from './tile-faces.js?v=0.3.4';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const local=['localhost','127.0.0.1'].includes(location.hostname),base=local?location.origin:ROOM_SERVER;
 const origins=local?[base]:ROOM_SERVERS;
@@ -16,7 +17,7 @@ function notice(text){$('#toast').textContent=text;$('#toast').classList.add('sh
 function store(){try{sessionStorage.setItem('tingchuan-active-room',JSON.stringify({...credential,base,pending:[...pending.values()]}));localStorage.setItem(key(credential.code),JSON.stringify(credential));}catch{}}
 function saved(){try{return JSON.parse(localStorage.getItem(key(requested)));}catch{return null;}}
 const button=(text,action,disabled=false,cls='')=>`<button type="button" class="button ${cls}" data-action="${action}" ${disabled?'disabled':''}>${text}</button>`;
-function tile(t,index=null){const joker=(v?.game?.rules||v?.rules)?.joker&&t===18;return `<${index==null?'span':'button type="button"'} class="tile ${selected.includes(index)&&index!=null?'selected':''} ${joker?'joker':''}" ${index==null?'':`data-index="${index}" aria-label="${tileName(t)}" aria-pressed="${selected.includes(index)}"`} title="${tileName(t)}"><img src="./assets/tiles/${t%9+1}${['m','p','s'][Math.floor(t/9)]}.svg" alt="${tileName(t)}" draggable="false" width="40" height="56">${joker?'<b class="joker-mark">百搭</b>':''}</${index==null?'span':'button'}>`;}
+function tile(t,index=null){const joker=(v?.game?.rules||v?.rules)?.joker&&t===18;return `<${index==null?'span':'button type="button"'} class="tile ${selected.includes(index)&&index!=null?'selected':''} ${joker?'joker':''}" ${index==null?'':`data-index="${index}" aria-label="${tileName(t)}" aria-pressed="${selected.includes(index)}"`} title="${tileName(t)}">${tileFace(t)}${joker?'<b class="joker-mark">百搭</b>':''}</${index==null?'span':'button'}>`;}
 function render(){
   const controls=`<div class="connection ${connected?'online':''}" role="status">${esc(status)}</div><a class="iconbutton" href="./#rules" aria-label="规则手册">${icon('help')}</a><span class="iconbutton user-avatar" title="好友房玩家">${esc(v?.members?.[v.seat]?.name?.[0]||'友')}</span>`;
   $('#room-app').innerHTML=`<div class="shell">${renderSidebar('rooms','online')}<main class="main room-main">${renderHeader('rooms',controls)}<div class="content page-content"><section class="intro"><div><div class="eyebrow">SICHUAN MAHJONG · FRIENDS TABLE</div><h1>好友来，同桌坐。</h1><p>${v?modeName(v.game?.rules||v.rules):'普通血战 / 幺鸡 · 可选换三张'} · 自摸加番 · 五番满</p></div>${credential?`<div class="intro-actions">${button('复制邀请','invite')}${button('回到入口','home')}</div>`:''}</section>${!credential?entry():!v?`<section class="panel room-empty"><div class="room-seal">川</div><h2>${esc(status)}</h2><p>正在恢复你的座位和最新牌局。</p>${button('重新连接','reconnect')}${button('回到入口','home')}</section>`:v.phase==='lobby'?lobby():table()}<div class="room-footnote">真人与电脑可混合入座 · 操作以服务端判定为准</div>${renderFooter('online')}</div></main></div>`;
