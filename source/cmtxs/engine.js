@@ -1,7 +1,8 @@
 import {JOKER,canComplete,bestAssignment} from './joker.js?v=0.3.0';
+import {DEFAULT_BOT_STYLES,normalizeBotStyle,normalizeBotStyles,rankBotDiscards,chooseBotClaim,chooseBotKong,handPotential,tileRisk} from './bot-policy.js?v=0.5.0';
 export {JOKER};
-export const VERSION = '0.3.0';
-export const isCompatibleVersion = version => ['0.1.0','0.1.1','0.2.0',VERSION].includes(version);
+export const VERSION = '0.5.0';
+export const isCompatibleVersion = version => ['0.1.0','0.1.1','0.2.0','0.3.0',VERSION].includes(version);
 export const RULES = Object.freeze({ version:'xuezhan-1', cap:5, zimoFan:1, swap:true, joker:false, dingque:true, huazhu:true, dajiao:true, refund:true, transfer:false, passHu:true });
 export const normalizeRules = options => ({...RULES,swap:options?.swap!==false,joker:options?.joker===true});
 export const modeName = options => `${options?.joker?'幺鸡':'血战'}${options?.swap===false?'定缺 · 不换三张':'换三张 · 定缺'}`;
@@ -108,8 +109,11 @@ export function observe(g,seat) {
     // Winning hands are public; ron tile is already present in the discard pool.
     if(s!==seat&&q.won)for(const t of q.hand)seen[t]++;
   }
-  return {hand:[...p.hand],melds:clone(p.melds),que:p.que,seen,remaining:g.wall.length,rules:normalizeRules(g.rules)};
+  return {hand:[...p.hand],melds:clone(p.melds),que:p.que,seen,remaining:g.wall.length,rules:normalizeRules(g.rules),opponents:g.players.filter((_,s)=>s!==seat).map(q=>({seat:q.seat,que:g.phase==='que'?-1:q.que,won:q.won,handCount:q.hand.length,melds:clone(q.melds),discards:[...q.discards]}))};
 }
+export const botStyle=(g,seat)=>normalizeBotStyle(g.botStyles?.[seat]);
+export function botDiscardAnalysis(g,seat=g.turn){const obs=observe(g,seat);return rankBotDiscards(obs,analyze(obs),botStyle(g,seat));}
+export function chooseDiscard(g,seat=g.turn){if(g.phase!=='discard'||g.turn!==seat||g.players[seat].won)throw Error('当前不能出牌');const choice=botDiscardAnalysis(g,seat)[0];if(!choice)throw Error('没有合法出牌');return choice.tile;}
 export function analyze(obs) {
   const {hand,melds,que,seen}=obs,rules=normalizeRules(obs.rules);
   const forced=hand.filter(t=>isQueTile(t,que,rules));
@@ -145,7 +149,7 @@ export function createGame(seed=randomSeed(),randomSource=null,options=RULES) {
   const players=['你','竹隐','云岫','松风'].map((name,seat)=>({name,seat,hand:[],melds:[],discards:[],que:-1,won:false,score:0,passedHuFan:null}));
   for(let n=0;n<13;n++)for(const p of players)p.hand.push(wall.pop());
   players[0].hand.push(wall.pop());for(const p of players)p.hand=sorted(p.hand);
-  return {version:VERSION,ruleVersion:RULES.version,rules,seed,players,wall,turn:0,phase:rules.swap?'swap':'que',swapDirection:1+Math.floor(rand()*3),last:null,drawn:null,afterKong:false,ledger:[],events:[],message:rules.swap?'选择同一花色的三张牌，换一份新的可能。':'本局不换三张，请直接定缺。',winners:[],decision:null};
+  return {version:VERSION,ruleVersion:RULES.version,rules,botStyles:normalizeBotStyles(options?.botStyles,DEFAULT_BOT_STYLES),seed,players,wall,turn:0,phase:rules.swap?'swap':'que',swapDirection:1+Math.floor(rand()*3),last:null,drawn:null,afterKong:false,ledger:[],events:[],message:rules.swap?'选择同一花色的三张牌，换一份新的可能。':'本局不换三张，请直接定缺。',winners:[],decision:null};
 }
 export function snapshot(g){const s=clone(g);s.events=[];return s;}
 function log(g,type,text,extra={}){g.events.push({id:g.events.length,type,text,...extra,state:snapshot(g)});}
@@ -266,6 +270,7 @@ function legacyPassedHuFan(g,s){
 }
 export function restoreGame(g){
   g.rules=normalizeRules(g.rules);
+  g.botStyles=normalizeBotStyles(g.botStyles,Array(4).fill('balanced'));
   for(let s=0;s<g.players.length;s++){
     const p=g.players[s];
     if(!Object.hasOwn(p,'passedHuFan'))p.passedHuFan=legacyPassedHuFan(g,s);
@@ -299,14 +304,18 @@ function takeClaim(g,s,action,t,from){
 }
 function aiClaim(g,s,t,from,rob){
   const options=claimOptions(g,s,t,from,rob),p=g.players[s];if(options.includes('hu'))return 'hu';
-  if(options.includes('kong'))return 'kong';
-  const rules=normalizeRules(g.rules),current=shanten(p.hand,p.melds.length,rules);
-  for(const action of options.filter(a=>claimType(a)==='pong')){
-    const hand=[...p.hand];removeMeldTiles(hand,t,2,claimJokers(action));
-    const after=Math.min(...[...new Set(hand)].filter(x=>!(rules.joker&&x===JOKER)).map(x=>{const h=[...hand];h.splice(h.indexOf(x),1);return shanten(h,p.melds.length+1,rules);}));
-    if(after<current)return action;
-  }return 'pass';
+  if(!options.length)return 'pass';
+  const obs=observe(g,s),rules=normalizeRules(g.rules),current=shanten(p.hand,p.melds.length,rules),style=botStyle(g,s),candidates=[];
+  for(const action of options){const kind=claimType(action),jokers=claimJokers(action),hand=[...p.hand];
+    const used=removeMeldTiles(hand,t,kind==='pong'?2:3,jokers),melds=[...p.melds,{type:kind,tile:t,tiles:[t,...used]}];
+    if(kind==='pong'){
+      const next={...obs,hand,melds},a=rankBotDiscards(next,analyze(next),style)[0];
+      if(a)candidates.push({action,kind,jokers,shanten:a.shanten,ukeire:a.ukeire,potential:a.potential,risk:a.risk});
+    }else candidates.push({action,kind,jokers,shanten:shanten(hand,melds.length,rules),ukeire:drawUkeire(obs,hand,melds.length),potential:handPotential(obs,hand,melds),risk:0});
+  }
+  return chooseBotClaim(obs,candidates,current,drawUkeire(obs),style);
 }
+function drawUkeire(obs,hand=obs.hand,open=obs.melds.length){const base=shanten(hand,open,obs.rules);let n=0;for(let t=0;t<27;t++)if(!isQueTile(t,obs.que,obs.rules)&&obs.seen[t]<4&&shanten([...hand,t],open,obs.rules)<base)n+=4-obs.seen[t];return n;}
 export function resolveResponse(g,human='pass'){
   return resolveResponses(g,g.players.map((p,s)=>s===0?human:chooseResponse(g,s)));
 }
@@ -372,11 +381,16 @@ export function aiStep(g){
   if(g.phase==='respond'){refreshDecision(g);if(g.decision)return false;resolveResponse(g);return true;}
   if(g.phase!=='discard'||g.turn===0)return false;
   const a=chooseSelfAction(g);if(a){selfAction(g,a.type,a.tile,g.turn,a.jokers??0);return true;}
-  const analysis=analyze(observe(g,g.turn));discard(g,analysis[0].tile);return true;
+  discard(g,chooseDiscard(g,g.turn));return true;
 }
 export function chooseSelfAction(g,s=g.turn){
   const acts=selfActions(g,s);
-  return acts.find(a=>a.type==='hu')||acts.find(a=>a.type==='reclaim')||acts.find(a=>!a.jokers&&['ankong','addkong'].includes(a.type));
+  const free=acts.find(a=>a.type==='hu')||acts.find(a=>a.type==='reclaim');if(free)return free;
+  const kongs=acts.filter(a=>!a.jokers&&['ankong','addkong'].includes(a.type));if(!kongs.length)return undefined;
+  const obs=observe(g,s),current=shanten(obs.hand,obs.melds.length,obs.rules),candidates=kongs.map(a=>{
+    const hand=[...obs.hand];removeMeldTiles(hand,a.tile,a.type==='ankong'?4:1,0);return {...a,shanten:shanten(hand,obs.melds.length+(a.type==='ankong'?1:0),obs.rules),risk:a.type==='addkong'?tileRisk(a.tile,obs):0};
+  });
+  const pick=chooseBotKong(obs,candidates,current,botStyle(g,s));return pick?{type:pick.type,tile:pick.tile,jokers:pick.jokers}:undefined;
 }
 export function waits(p,rules=RULES){
   if(!clearQue(p,rules))return [];

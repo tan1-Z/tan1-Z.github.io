@@ -1,4 +1,4 @@
-import {tileName,meldTiles,JOKER} from './engine.js?v=0.3.0';
+import {tileName,meldTiles,JOKER} from './engine.js?v=0.5.0';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const positions=['south','east','north','west'];
 const relativeNames=['你的','下家的','对家的','上家的'];

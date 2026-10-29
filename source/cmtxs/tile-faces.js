@@ -1,4 +1,4 @@
-import {tileName} from './engine.js?v=0.3.0';
+import {tileName} from './engine.js?v=0.5.0';
 
 // All game surfaces use the same 27 faces and cache revision.
 export function tileFace(t){
