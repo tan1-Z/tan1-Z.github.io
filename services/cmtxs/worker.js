@@ -11,7 +11,7 @@ export default {
   async fetch(request,env){
     if(!allowed(request,env))return json({error:'来源不允许'},403);
     if(request.method==='OPTIONS')return cors(new Response(null,{status:204}),request);
-    const u=new URL(request.url);if(u.pathname==='/health')return cors(json({ok:true,protocol:1,version:'0.5.0',features:['match-v1','bot-personalities-v1']}),request);
+    const u=new URL(request.url);if(u.pathname==='/health')return cors(json({ok:true,protocol:1,version:'0.6.0',features:['match-v1','bot-personalities-v1','emotes-v1']}),request);
     let response;
     try{
       if(u.pathname==='/rooms'&&request.method==='POST'){
@@ -47,10 +47,10 @@ export class MahjongRoom extends DurableObject {
       this.ctx.storage.setAlarm(Math.min(this.room.nextAlarm(),...authDeadlines))
     ]);
   }
-  broadcast(){
+  broadcast(event=null){
     for(const ws of this.ctx.getWebSockets()){
       const a=ws.deserializeAttachment();if(a?.seat==null)continue;
-      try{ws.send(JSON.stringify(this.room.view(a.seat)));}catch{}
+      try{ws.send(JSON.stringify(event||this.room.view(a.seat)));}catch{}
     }
   }
   async fetch(request){
@@ -86,11 +86,14 @@ export class MahjongRoom extends DurableObject {
         a.seat=seat;ws.serializeAttachment(a);this.room.presence(seat,true);await this.save();this.broadcast();return;
       }
       ws.serializeAttachment(a);
-      if(command.type==='command'){
+      if(command.type==='emote'){
+        const {event,...ack}=this.room.sendEmote(a.seat,command);await this.save();ws.send(JSON.stringify({type:'emote-ack',...ack}));if(event)this.broadcast(event);
+      }else if(command.type==='command'){
         const ack=this.room.command(a.seat,command);await this.save();ws.send(JSON.stringify({type:'ack',...ack}));this.broadcast();
       }else if(command.type==='sync')ws.send(JSON.stringify(this.room.view(a.seat)));
       else throw Error('消息类型无效');
     }catch(e){
+      if(command?.type==='emote'){ws.send(JSON.stringify({type:'emote-error',id:command.id,message:e.message||'表情发送失败'}));return;}
       ws.send(JSON.stringify({type:'error',id:command?.id,message:e.message||'操作失败'}));
       if(a?.seat!=null)ws.send(JSON.stringify(this.room.view(a.seat)));
     }

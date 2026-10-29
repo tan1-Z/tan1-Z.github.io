@@ -10,13 +10,13 @@ export async function startServer({port=4173,dataDir=null,timeout=30000,botDelay
   const rooms=new Map(),sockets=new Map();
   if(dataDir){await mkdir(dataDir,{recursive:true});for(const file of await readdir(dataDir))if(/^[A-Z2-9]{8}\.json$/.test(file)){const r=new Room(JSON.parse(await readFile(path.join(dataDir,file),'utf8')),{timeout,botDelay});if(!r.expired()){r.d.members.forEach(m=>{if(m)m.online=false;});rooms.set(r.d.code,r);}}}
   const persist=async r=>{if(dataDir){const file=path.join(dataDir,r.d.code+'.json');await writeFile(file+'.tmp',JSON.stringify(r.serialize()));await rename(file+'.tmp',file);}};
-  const broadcast=r=>{for(const [ws,a] of sockets)if(a.room===r&&a.seat!=null&&ws.readyState===1)ws.send(JSON.stringify(r.view(a.seat)));};
+  const broadcast=(r,event=null)=>{for(const [ws,a] of sockets)if(a.room===r&&a.seat!=null&&ws.readyState===1)ws.send(JSON.stringify(event||r.view(a.seat)));};
   let queue=Promise.resolve();const serial=fn=>{queue=queue.then(fn).catch(e=>console.error(e.message));};
   const server=http.createServer((req,res)=>serial(async()=>{
     const send=(status,body)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(body));};
     try{
       const u=new URL(req.url,'http://localhost');
-      if(req.method==='GET'&&u.pathname==='/health')return send(200,{ok:true,protocol:1,version:'0.5.0',features:['match-v1','bot-personalities-v1']});
+      if(req.method==='GET'&&u.pathname==='/health')return send(200,{ok:true,protocol:1,version:'0.6.0',features:['match-v1','bot-personalities-v1','emotes-v1']});
       if(req.method==='POST'){
         let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)return send(413,{error:'请求过大'});}
         const body=JSON.parse(raw),m=u.pathname.match(/^\/rooms\/([A-Z2-9]{8})\/join$/);let r,credential;
@@ -31,7 +31,7 @@ export async function startServer({port=4173,dataDir=null,timeout=30000,botDelay
       }
       const relative=decodeURIComponent(u.pathname==='/'?'/index.html':u.pathname);const file=path.resolve(root,'.'+relative);
       if(!file.startsWith(root+path.sep))return send(403,{error:'禁止访问'});
-      const content=await readFile(file),type={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.json':'application/json'}[path.extname(file)]||'application/octet-stream';
+      const content=await readFile(file),type={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.webp':'image/webp','.png':'image/png','.json':'application/json'}[path.extname(file)]||'application/octet-stream';
       res.writeHead(200,{'Content-Type':type,'Cache-Control':'no-store'});res.end(content);
     }catch(e){send(e.code==='ENOENT'?404:400,{error:e.message});}
   }));
@@ -55,10 +55,11 @@ export async function startServer({port=4173,dataDir=null,timeout=30000,botDelay
           for(const [other,b] of sockets)if(other!==ws&&b.room===r&&b.seat===seat){b.seat=null;other.close(4001,'该座位在另一页面打开');}
           a.seat=seat;clearTimeout(authTimer);r.presence(seat,true);await persist(r);broadcast(r);return;
         }
-        if(c.type==='command'){const ack=r.command(a.seat,c);await persist(r);ws.send(JSON.stringify({type:'ack',...ack}));broadcast(r);}
+        if(c.type==='emote'){const {event,...ack}=r.sendEmote(a.seat,c);await persist(r);ws.send(JSON.stringify({type:'emote-ack',...ack}));if(event)broadcast(r,event);}
+        else if(c.type==='command'){const ack=r.command(a.seat,c);await persist(r);ws.send(JSON.stringify({type:'ack',...ack}));broadcast(r);}
         else if(c.type==='sync')ws.send(JSON.stringify(r.view(a.seat)));
         else throw Error('消息类型无效');
-      }catch(e){ws.send(JSON.stringify({type:'error',id:c?.id,message:e.message}));if(a.seat!=null)ws.send(JSON.stringify(r.view(a.seat)));}
+      }catch(e){if(c?.type==='emote'){ws.send(JSON.stringify({type:'emote-error',id:c.id,message:e.message}));return;}ws.send(JSON.stringify({type:'error',id:c?.id,message:e.message}));if(a.seat!=null)ws.send(JSON.stringify(r.view(a.seat)));}
     }));
     ws.on('close',()=>serial(async()=>{clearTimeout(authTimer);sockets.delete(ws);if(a.seat!=null){r.presence(a.seat,false);await persist(r);broadcast(r);}}));
     ws.on('error',()=>{});

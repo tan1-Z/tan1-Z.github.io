@@ -1,5 +1,6 @@
 import {VERSION,RULES,normalizeRules,createGame,recommendSwap,recommendQue,exchangeTiles,setAllQue,legalDiscards,selfActions,chooseSelfAction,selfAction,chooseDiscard,discard,responseActions,chooseResponse,resolveResponses,analyze,observe,assertGame} from '../../source/cmtxs/engine.js';
 import {DEFAULT_BOT_STYLES,isBotStyle,normalizeBotStyles} from '../../source/cmtxs/bot-policy.js';
+import {EMOTE_COOLDOWN_MS,EMOTE_DURATION_MS,isEmoteId} from '../../source/cmtxs/emotes.js';
 import {newMatch,matchRounds,matchComplete,recordRound,matchView} from './match.js';
 
 export const PROTOCOL=1;
@@ -14,6 +15,7 @@ export class Room {
     this.now=now;this.random=random;this.timeout=timeout;this.botDelay=botDelay;
     this.d=data?copy(data):{protocol:PROTOCOL,code:'',created:now(),updated:now(),expires:now()+86400000,revision:0,decision:0,members:Array(4).fill(null),game:null,submissions:{},deadline:null,botAt:null,reviews:[],recent:[]};
     this.d.admissions??=[];
+    this.d.emoteLimits??=Array.from({length:4},()=>({at:null,ids:[]}));
     this.d.rules=normalizeRules(this.d.rules);
     this.d.roundId??=this.d.game?1:0;
     this.d.match??=newMatch();this.d.matchArchive??=[];
@@ -94,6 +96,17 @@ export class Room {
       if(a)selfAction(g,a.type,a.tile,seat,a.jokers??0);else this.playDiscard(seat,chooseDiscard(g,seat));
       this.collectLogs();this.newDecision();
     }
+  }
+  sendEmote(seat,c){
+    this.check();if(!this.d.members[seat])fail('请先加入房间');
+    if(!c||typeof c.id!=='string'||!/^[\w-]{1,80}$/.test(c.id)||!isEmoteId(c.sticker))fail('表情无效，请刷新网页');
+    const limit=this.d.emoteLimits[seat];
+    if(limit.ids.includes(c.id))return {id:c.id,duplicate:true};
+    if(!this.d.game)fail('开局后才能发送牌桌表情');
+    const at=this.now();if(limit.at!=null&&at-limit.at<EMOTE_COOLDOWN_MS)fail('表情发送太快，请稍候再试');
+    limit.at=at;limit.ids.push(c.id);limit.ids=limit.ids.slice(-16);
+    // Only the abuse-control cursor is saved. The image event itself is live-only.
+    return {id:c.id,event:{type:'emote',id:c.id,seat,sticker:c.sticker,at,expiresAt:at+EMOTE_DURATION_MS}};
   }
   command(seat,c){
     this.check();const m=this.d.members[seat];if(!m)fail('请先加入房间');
@@ -176,7 +189,7 @@ export class Room {
   nextAlarm(){return Math.min(...[this.d.expires,this.d.deadline,this.d.botAt].filter(x=>x!=null));}
   view(seat){
     const d=this.d,g=d.game,m=d.members[seat];
-    const view={type:'state',protocol:PROTOCOL,version:VERSION,code:d.code,revision:d.revision,decision:d.decision,serverTime:this.now(),expires:d.expires,seat,host:0,rules:normalizeRules(g&&g.phase!=='ended'?g.rules:d.rules),deadline:d.deadline,phase:g?.phase||'lobby',pending:this.pending(seat),submitted:Object.hasOwn(d.submissions,seat),
+    const view={type:'state',protocol:PROTOCOL,version:VERSION,features:['emotes-v1'],code:d.code,revision:d.revision,decision:d.decision,serverTime:this.now(),expires:d.expires,seat,host:0,rules:normalizeRules(g&&g.phase!=='ended'?g.rules:d.rules),deadline:d.deadline,phase:g?.phase||'lobby',pending:this.pending(seat),submitted:Object.hasOwn(d.submissions,seat),
       botStyles:[...d.botStyles],members:d.members.map((p,s)=>p?{name:p.name,ready:p.ready,online:p.online,auto:p.auto,bot:false}:{name:['竹隐','云岫','松风','清和'][s],style:d.botStyles[s],ready:true,online:true,auto:true,bot:true}),match:matchView(d.match),matchArchive:copy(d.matchArchive)};
     if(!g)return view;
     view.game={phase:g.phase,turn:g.turn,rules:normalizeRules(g.rules),botStyles:normalizeBotStyles(g.botStyles,Array(4).fill('balanced')),remaining:g.wall.length,last:copy(g.last),swapDirection:g.swapDirection,winners:[...g.winners],
