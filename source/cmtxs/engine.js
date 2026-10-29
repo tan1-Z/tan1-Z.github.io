@@ -1,8 +1,8 @@
 import {JOKER,canComplete,bestAssignment} from './joker.js?v=0.3.0';
-import {DEFAULT_BOT_STYLES,normalizeBotStyle,normalizeBotStyles,rankBotDiscards,chooseBotClaim,chooseBotKong,handPotential,tileRisk} from './bot-policy.js?v=0.5.0';
+import {DEFAULT_BOT_STYLES,normalizeBotStyle,normalizeBotStyles,rankBotDiscards,chooseBotClaim,chooseBotKong,handPotential,tileRisk} from './bot-policy.js?v=0.6.0';
 export {JOKER};
-export const VERSION = '0.5.0';
-export const isCompatibleVersion = version => ['0.1.0','0.1.1','0.2.0','0.3.0',VERSION].includes(version);
+export const VERSION = '0.6.0';
+export const isCompatibleVersion = version => ['0.1.0','0.1.1','0.2.0','0.3.0','0.5.0',VERSION].includes(version);
 export const RULES = Object.freeze({ version:'xuezhan-1', cap:5, zimoFan:1, swap:true, joker:false, dingque:true, huazhu:true, dajiao:true, refund:true, transfer:false, passHu:true });
 export const normalizeRules = options => ({...RULES,swap:options?.swap!==false,joker:options?.joker===true});
 export const modeName = options => `${options?.joker?'幺鸡':'血战'}${options?.swap===false?'定缺 · 不换三张':'换三张 · 定缺'}`;

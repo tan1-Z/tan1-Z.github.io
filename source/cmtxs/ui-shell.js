@@ -1,4 +1,4 @@
-import {VERSION} from './engine.js?v=0.5.0';
+import {VERSION} from './engine.js?v=0.6.0';
 const icons={
   table:'<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 3v18M3 9h5M12 8h5m-5 4h5m-5 4h3"/>',
   review:'<path d="M4 4h12a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3V4Z"/><path d="M4 16h15M8 8h7m-7 4h5M21 5v12"/>',

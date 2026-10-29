@@ -1,18 +1,20 @@
-import {SUITS,tileName,recommendSwap,analyze,modeName,meldTiles} from './engine.js?v=0.5.0';
-import {variantPicker,claimLabel,selfLabel,meldCaption} from './variants-ui.js?v=0.5.0';
-import {botPicker,readBotPicker,botStyleName} from './bots-ui.js?v=0.5.0';
+import {createEmoteController} from './emotes-ui.js?v=0.6.0';
+import {SUITS,tileName,recommendSwap,analyze,modeName,meldTiles} from './engine.js?v=0.6.0';
+import {variantPicker,claimLabel,selfLabel,meldCaption} from './variants-ui.js?v=0.6.0';
+import {botPicker,readBotPicker,botStyleName} from './bots-ui.js?v=0.6.0';
 import {ROOM_SERVER,ROOM_SERVERS} from './online-config.js?v=0.2.1';
 import {admissionRequest,admitRoom,admissionError} from './room-api.js?v=0.2.1';
-import {icon,renderSidebar,renderHeader,renderFooter} from './ui-shell.js?v=0.5.0';
+import {icon,renderSidebar,renderHeader,renderFooter} from './ui-shell.js?v=0.6.0';
 import {renderMatch,reportText,matchName} from './match-ui.js?v=0.4.0';
-import {renderDiscardArena,renderMeldBadges} from './table-ui.js?v=0.5.0';
-import {tileFace} from './tile-faces.js?v=0.5.0';
+import {renderDiscardArena,renderMeldBadges} from './table-ui.js?v=0.6.0';
+import {tileFace} from './tile-faces.js?v=0.6.0';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const local=['localhost','127.0.0.1'].includes(location.hostname),base=local?location.origin:ROOM_SERVER;
 const origins=local?[base]:ROOM_SERVERS;
 let serviceOrigin=origins[0],admitting=false,pendingAdmission=null,socketTimer;
 try{pendingAdmission=JSON.parse(sessionStorage.getItem('tingchuan-admission:'+base));}catch{}
 let v=null,credential=null,ws=null,status='未入座',connected=false,selected=[],decision=null,retries=0,retryTimer,heartbeat,lastPong=0,stopped=false,toastTimer,skew=0,reviewIndex=0;
+const emotes=createEmoteController({send:sendEmote,notice});
 const pending=new Map(),requested=new URL(location.href).searchParams.get('room')?.toUpperCase()||'';
 const key=code=>`tingchuan-seat:${base}:${code}`;
 function notice(text){$('#toast').textContent=text;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),4500);}
@@ -23,6 +25,7 @@ function tile(t,index=null){const joker=(v?.game?.rules||v?.rules)?.joker&&t===1
 function render(){
   const controls=`<div class="connection ${connected?'online':''}" role="status">${esc(status)}</div><a class="iconbutton" href="./#rules" aria-label="规则手册">${icon('help')}</a><span class="iconbutton user-avatar" title="好友房玩家">${esc(v?.members?.[v.seat]?.name?.[0]||'友')}</span>`;
   $('#room-app').innerHTML=`<div class="shell">${renderSidebar('rooms','online')}<main class="main room-main">${renderHeader('rooms',controls)}<div class="content page-content"><section class="intro"><div><div class="eyebrow">SICHUAN MAHJONG · FRIENDS TABLE</div><h1>好友来，同桌坐。</h1><p>${v?modeName(v.game?.rules||v.rules):'普通血战 / 幺鸡 · 可选换三张'} · 自摸加番 · 五番满</p></div>${credential?`<div class="intro-actions">${button('复制邀请','invite')}${button('回到入口','home')}</div>`:''}</section>${!credential?entry():!v?`<section class="panel room-empty"><div class="room-seal">川</div><h2>${esc(status)}</h2><p>正在恢复你的座位和最新牌局。</p>${button('重新连接','reconnect')}${button('回到入口','home')}</section>`:v.phase==='lobby'?lobby():table()}<div class="room-footnote">真人与电脑可混合入座 · 操作以服务端判定为准</div>${renderFooter('online')}</div></main></div>`;
+  emotes.mount(v?.game?$('.mahjong-table'):null,{viewer:v?.seat??0,names:v?.members.map(m=>m.name)||[],enabled:connected&&v?.features?.includes('emotes-v1')});
 }
 function entry(){
   const previous=saved();return `<div class="room-entry"><section class="panel room-welcome"><span class="eyebrow">一桌川麻，隔屏相聚</span><h2>不够四人，也能开局。</h2><div class="welcome-tiles">${[0,9,18].map(t=>tile(t)).join('')}</div><p>创建好友房，把邀请发给朋友。<br>1–4 位真人，空位自动补齐电脑。</p><div class="room-promises"><span>01<br><b>房号入座</b></span><span>02<br><b>同步行牌</b></span><span>03<br><b>断线续局</b></span></div></section><section class="panel room-form"><h2>准备入座</h2>${!base?'<p class="room-error">联机服务尚未配置，请稍后再试。</p>':''}<label for="nickname">你的称呼</label><input id="nickname" maxlength="12" value="${esc(localStorage.getItem('tingchuan-nickname')||'牌友')}" autocomplete="nickname"><button class="button primary" data-action="create" ${!base?'disabled':''}>创建好友房 <span>→</span></button><div class="room-divider">或加入朋友的房间</div><label for="room-code">8 位房间号</label><input id="room-code" maxlength="8" placeholder="例如 ABCD2345" value="${esc(requested)}" autocomplete="off" autocapitalize="characters"><button class="button" data-action="join" ${!base?'disabled':''}>${previous?'作为新玩家加入':'加入房间'}</button>${previous?button('恢复我的座位','resume'):''}<small>断线后会自动重连。请保留当前浏览器的数据，以便恢复原座位。</small></section></div>`;
@@ -42,9 +45,9 @@ function seats(){return v.members.map((m,s)=>`<div class="seat-card ${s===v.seat
 function lobby(){const me=v.members[v.seat],allReady=v.members.every(m=>m.ready);return `${archivePanel()}<div class="room-lobby"><section class="panel lobby-table"><div class="lobby-title"><span class="eyebrow">等待好友入座</span><strong class="room-number">${v.code}</strong><p>邀请好友后，准备即可开始。电脑会自动补齐空位。</p></div>${modePanel()}<div class="seat-grid">${seats()}</div><div class="lobby-controls">${button(me.ready?'取消准备':'我准备好了','ready',!connected,me.ready?'':'primary')}${v.seat===0?button('开始本局','start',!connected||!allReady,'gold'):''}</div></section><aside class="panel room-help"><h2>这一桌，怎么玩？</h2><p>房主确认所有真人已准备后开局。开局后保留每位玩家的座位，想邀请新的朋友时，可重新创建房间。</p><p>每次操作有 30 秒。超时由电脑托管，可随时取消；刷新页面会自动恢复座位。</p><p>执行查花猪、查大叫与未听退税，暂不启用呼叫转移。过胡后接炮须加番，自己摸牌后解除。</p>${button('复制邀请链接','invite')}<small>邀请链接只包含房号，不包含你的座位凭证。</small></aside></div>`;}
 function table(){
   const g=v.game,own=g.players[v.seat],member=v.members[v.seat];
-  function player(relative,pos){const s=(v.seat+relative)%4,p=g.players[s],m=v.members[s];return `<div class="online-player ${pos} ${g.turn===s&&g.phase==='discard'?'turn':''}"><div class="seat-avatar">${p.won?'胡':m.bot?'机':esc(p.name[0])}</div><div><b>${esc(p.name)}</b><span class="score">${p.score>0?'+':''}${p.score}</span><small>${p.que<0?'尚未定缺':'缺'+SUITS[p.que]} · ${p.won?'已胡':m.bot?botStyleName(g.botStyles?.[s]):m.auto?'托管':m.online?'在线':'离线'}</small>${renderMeldBadges(p.melds,t=>tile(t))}</div></div>`;}
+  function player(relative,pos){const s=(v.seat+relative)%4,p=g.players[s],m=v.members[s];return `<div class="online-player ${pos} ${g.turn===s&&g.phase==='discard'?'turn':''}" data-emote-seat="${s}"><div class="seat-avatar">${p.won?'胡':m.bot?'机':esc(p.name[0])}</div><div><b>${esc(p.name)}</b><span class="score">${p.score>0?'+':''}${p.score}</span><small>${p.que<0?'尚未定缺':'缺'+SUITS[p.que]} · ${p.won?'已胡':m.bot?botStyleName(g.botStyles?.[s]):m.auto?'托管':m.online?'在线':'离线'}</small>${renderMeldBadges(p.melds,t=>tile(t))}</div></div>`;}
   const canPick=connected&&v.pending&&!member.auto&&['swap','discard'].includes(v.phase)&&pending.size===0;
-  return `${renderMatch(v,{full:v.phase==='ended'})}${archivePanel()}<div class="online-layout"><div><div class="board-wrap"><div class="board-bar"><div class="board-bar-title">好友房 <strong>${v.code}</strong><span class="badge">血战到底</span></div><div class="board-tools"><span>${{swap:'换三张',que:'定缺',discard:'行牌',respond:'响应',ended:'已结算'}[v.phase]}</span><span class="room-timer" aria-label="本次操作剩余时间"></span></div></div><div class="felt online-felt mahjong-table" data-phase="${v.phase}">${player(2,'north')}${player(3,'west')}${player(1,'east')}<div class="online-backs" aria-label="对家手牌数量">${Array.from({length:g.players[(v.seat+2)%4].handCount},()=>'<span class="tileback"></span>').join('')}</div>${renderDiscardArena(g,v.seat,t=>tile(t))}<div class="own-zone"><div class="own-info"><div class="own-player"><span class="avatar ${g.turn===v.seat?'active':''}">${own.won?'胡':'你'}</span><b>${esc(own.name)}</b><span class="smalltag">${own.que<0?'尚未定缺':'定缺 · '+SUITS[own.que]}</span><span class="smalltag">${own.score>0?'+':''}${own.score} 分</span></div><span>${member.auto?'电脑托管中':!connected?'连接恢复中':''}</span></div>${actions()}<div class="melds">${own.melds.map(m=>`<div class="meld">${meldTiles(m).map(t=>tile(t)).join('')}<small class="meld-caption">${meldCaption(m)}</small></div>`).join('')}</div><div class="hand">${own.hand.map((t,i)=>tile(t,canPick&&(v.phase==='swap'||v.options.discards.includes(t))?i:null)).join('')}</div></div><span class="session-marker">${modeName(g.rules)} / 自摸加番 / 五番满</span></div></div><p class="sub-board">${g.rules.swap?'换三张、':''}定缺同时提交；胡牌优先，支持一炮多响。断线或超时托管不会重置牌局。</p>${v.phase==='ended'?modePanel()+settlement():''}</div><aside class="right-column"><section class="panel room-help"><div class="panel-title">同桌动态<span class="tinybadge">实时同步</span></div><div class="online-members">${v.members.map((m,s)=>`<div><b>${esc(m.name)}${s===v.seat?' · 你':''}</b><span>${m.bot?botStyleName(g.botStyles?.[s]):m.auto?'托管':m.online?'在线':'断线'}</span></div>`).join('')}</div>${v.phase!=='ended'?button(member.auto?'取消电脑托管':'交给电脑托管','auto',!connected):''}<p>对战时隐藏牌效建议。结算后可以查看自己的每一步出牌，避免影响同桌对局。</p>${own.passedHuFan!=null&&!own.won?`<p class="room-lock">过手胡：接炮需高于 ${own.passedHuFan} 番，自己摸牌后解除。</p>`:''}</section><section class="panel room-help"><div class="panel-title">本局记录</div><ol class="online-log">${g.recent.map(e=>`<li>${esc(e.text)}</li>`).join('')}</ol></section></aside></div>`;
+  return `${renderMatch(v,{full:v.phase==='ended'})}${archivePanel()}<div class="online-layout"><div><div class="board-wrap"><div class="board-bar"><div class="board-bar-title">好友房 <strong>${v.code}</strong><span class="badge">血战到底</span></div><div class="board-tools"><span>${{swap:'换三张',que:'定缺',discard:'行牌',respond:'响应',ended:'已结算'}[v.phase]}</span><span class="room-timer" aria-label="本次操作剩余时间"></span></div></div><div class="felt online-felt mahjong-table" data-phase="${v.phase}">${player(2,'north')}${player(3,'west')}${player(1,'east')}<div class="online-backs" aria-label="对家手牌数量">${Array.from({length:g.players[(v.seat+2)%4].handCount},()=>'<span class="tileback"></span>').join('')}</div>${renderDiscardArena(g,v.seat,t=>tile(t))}${emotes.layer()}<div class="own-zone"><div class="own-info"><div class="own-player" data-emote-seat="${v.seat}"><span class="avatar ${g.turn===v.seat?'active':''}">${own.won?'胡':'你'}</span><b>${esc(own.name)}</b><span class="smalltag">${own.que<0?'尚未定缺':'定缺 · '+SUITS[own.que]}</span><span class="smalltag">${own.score>0?'+':''}${own.score} 分</span></div>${emotes.controls()}<span>${member.auto?'电脑托管中':!connected?'连接恢复中':''}</span></div>${actions()}<div class="melds">${own.melds.map(m=>`<div class="meld">${meldTiles(m).map(t=>tile(t)).join('')}<small class="meld-caption">${meldCaption(m)}</small></div>`).join('')}</div><div class="hand">${own.hand.map((t,i)=>tile(t,canPick&&(v.phase==='swap'||v.options.discards.includes(t))?i:null)).join('')}</div></div><span class="session-marker">${modeName(g.rules)} / 自摸加番 / 五番满</span></div></div><p class="sub-board">${g.rules.swap?'换三张、':''}定缺同时提交；胡牌优先，支持一炮多响。断线或超时托管不会重置牌局。</p>${v.phase==='ended'?modePanel()+settlement():''}</div><aside class="right-column"><section class="panel room-help"><div class="panel-title">同桌动态<span class="tinybadge">实时同步</span></div><div class="online-members">${v.members.map((m,s)=>`<div><b>${esc(m.name)}${s===v.seat?' · 你':''}</b><span>${m.bot?botStyleName(g.botStyles?.[s]):m.auto?'托管':m.online?'在线':'断线'}</span></div>`).join('')}</div>${v.phase!=='ended'?button(member.auto?'取消电脑托管':'交给电脑托管','auto',!connected):''}<p>对战时隐藏牌效建议。结算后可以查看自己的每一步出牌，避免影响同桌对局。</p>${own.passedHuFan!=null&&!own.won?`<p class="room-lock">过手胡：接炮需高于 ${own.passedHuFan} 番，自己摸牌后解除。</p>`:''}</section><section class="panel room-help"><div class="panel-title">本局记录</div><ol class="online-log">${g.recent.map(e=>`<li>${esc(e.text)}</li>`).join('')}</ol></section></aside></div>`;
 }
 function actions(){
   const g=v.game,disabled=!connected||pending.size>0,auto=v.members[v.seat].auto;let text='',sub='',buttons='';
@@ -65,7 +68,7 @@ function settlement(){
 function updateClock(){if(!v)return;const el=$('.room-timer');if(el)el.textContent=v.deadline&&v.phase!=='ended'?Math.max(0,Math.ceil((v.deadline-(Date.now()+skew))/1000))+' 秒':'';}
 setInterval(updateClock,500);
 function connect(){
-  if(!credential)return;stopped=false;connected=false;clearTimeout(retryTimer);clearInterval(heartbeat);status=retries?'正在重连…':'连接牌桌…';render();
+  if(!credential)return;emotes.clear();stopped=false;connected=false;clearTimeout(retryTimer);clearInterval(heartbeat);status=retries?'正在重连…':'连接牌桌…';render();
   clearTimeout(socketTimer);
   const url=new URL(`${serviceOrigin}/rooms/${credential.code}/socket`);url.protocol=url.protocol==='https:'?'wss:':'ws:';const socket=new WebSocket(url);ws=socket;let authenticated=false;
   socketTimer=setTimeout(()=>{if(ws===socket&&!authenticated)socket.close();},12000);
@@ -73,6 +76,9 @@ function connect(){
   socket.onmessage=event=>{
     if(ws!==socket)return;lastPong=Date.now();if(event.data==='pong')return;
     let m;try{m=JSON.parse(event.data);}catch{return;}
+    if(m.type==='emote'){emotes.receive(m,skew);return;}
+    if(m.type==='emote-ack')return;
+    if(m.type==='emote-error'){notice(m.message);return;}
     if(m.type==='state'){
       if(m.protocol!==1){notice('版本已更新，请刷新网页。');stopped=true;socket.close();return;}
       if(v&&m.revision<v.revision)return;
@@ -91,6 +97,10 @@ function connect(){
     if(!stopped){serviceOrigin=origins[(origins.indexOf(serviceOrigin)+1)%origins.length];retryTimer=setTimeout(connect,Math.min(10000,600*2**Math.min(5,retries++))+Math.random()*300);}
   };
   socket.onerror=()=>{};
+}
+function sendEmote(sticker){
+  if(!connected||ws?.readyState!==1||!v?.features?.includes('emotes-v1')){notice('正在恢复连接，请稍候。');return false;}
+  try{ws.send(JSON.stringify({type:'emote',id:crypto.randomUUID(),sticker}));return true;}catch{notice('表情发送失败，请连接恢复后再试。');return false;}
 }
 function command(action,extra={}){
   if(!connected||ws?.readyState!==1){notice('正在恢复连接，请稍候。');return;}
@@ -114,6 +124,7 @@ async function enter(create){
   finally{admitting=false;controls.forEach(([el,disabled])=>el.disabled=disabled);btn.innerHTML=label;}
 }
 document.addEventListener('click',async event=>{
+  if(emotes.handle(event))return;
   const pick=event.target.closest('[data-index]');if(pick){const i=Number(pick.dataset.index);if(v.phase==='swap')selected=selected.includes(i)?selected.filter(x=>x!==i):selected.length<3?[...selected,i]:selected;else selected=[i];render();updateClock();return;}
   const action=event.target.closest('[data-action]')?.dataset.action;if(!action)return;
   if(action==='create'||action==='join')return enter(action==='create');
@@ -143,6 +154,7 @@ document.addEventListener('click',async event=>{
   }
 });
 document.addEventListener('change',e=>{if(e.target.matches('[data-bot-seat]'))return command('bot-config',{botStyles:readBotPicker(document,v.botStyles)});if(e.target.id==='match-rounds')return command('match-config',{rounds:Number(e.target.value)});if(['variant-joker','variant-swap'].includes(e.target.id))command('configure',{rules:{joker:$('#variant-joker').value==='true',swap:$('#variant-swap').value==='true'}});});
+document.addEventListener('keydown',e=>emotes.keydown(e));
 window.addEventListener('online',()=>{if(credential&&!connected&&!stopped)connect();});
 try{const previous=JSON.parse(sessionStorage.getItem('tingchuan-active-room'));if(previous?.base===base&&(!requested||requested===previous.code)){credential={code:previous.code,token:previous.token,seat:previous.seat,server:previous.server};for(const c of previous.pending||[])pending.set(c.id,c);}}catch{}
 if(credential){serviceOrigin=origins.includes(credential.server)?credential.server:origins[0];connect();}else render();

@@ -1,7 +1,7 @@
-import {CHALLENGES,challengeById,createChallenge,restoreChallenge,challengeMove,challengeDiscards,challengeActions,challengeScore,challengeGoalMet} from './challenges.js?v=0.5.0';
-import {tileName,SUITS,meldTiles,isQueTile} from './engine.js?v=0.5.0';
-import {tileFace} from './tile-faces.js?v=0.5.0';
-import {selfLabel,meldCaption} from './variants-ui.js?v=0.5.0';
+import {CHALLENGES,challengeById,createChallenge,restoreChallenge,challengeMove,challengeDiscards,challengeActions,challengeScore,challengeGoalMet} from './challenges.js?v=0.6.0';
+import {tileName,SUITS,meldTiles,isQueTile} from './engine.js?v=0.6.0';
+import {tileFace} from './tile-faces.js?v=0.6.0';
+import {selfLabel,meldCaption} from './variants-ui.js?v=0.6.0';
 const KEY='tingchuan-challenges-v1';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const button=(text,action,disabled=false,cls='')=>`<button type="button" class="button ${cls}" data-challenge="${action}" ${disabled?'disabled':''}>${text}</button>`;

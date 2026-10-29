@@ -1,4 +1,4 @@
-import {normalizeRules,sorted,counts,meldTiles,isWinning,scoreHand,legalDiscards,selfActions,tileName,JOKER} from './engine.js?v=0.5.0';
+import {normalizeRules,sorted,counts,meldTiles,isWinning,scoreHand,legalDiscards,selfActions,tileName,JOKER} from './engine.js?v=0.6.0';
 
 // Offline, perfect-information puzzles: a discard advances exactly one fixed draw.
 // They share legality and scoring with the game, without simulating other seats.

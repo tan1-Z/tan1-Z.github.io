@@ -1,4 +1,4 @@
-import {BOT_STYLES,normalizeBotStyles,botStyleName} from './bot-policy.js?v=0.5.0';
+import {BOT_STYLES,normalizeBotStyles,botStyleName} from './bot-policy.js?v=0.6.0';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export {botStyleName};
 export function botPicker(styles,{names=['你','竹隐','云岫','松风'],seats=[1,2,3],disabled=false,prefix='bot-style'}={}){

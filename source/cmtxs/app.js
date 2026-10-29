@@ -1,12 +1,13 @@
-import { VERSION,RULES,SUITS,tileName,sorted,counts,createGame,recommendSwap,recommendQue,swapTiles,setQue,observe,analyze,shanten,legalDiscards,selfActions,selfAction,discard,resolveResponse,aiStep,scoreHand,isWinning,assertGame,isCompatibleVersion,restoreGame,refreshDecision,normalizeRules,modeName,meldTiles,isQueTile,clearQue,waits } from './engine.js?v=0.5.0';
-import {variantPicker,variantHint,claimLabel,selfLabel,meldCaption} from './variants-ui.js?v=0.5.0';
-import {botPicker,readBotPicker,botRoster,botStyleName} from './bots-ui.js?v=0.5.0';
+import {createEmoteController} from './emotes-ui.js?v=0.6.0';
+import { VERSION,RULES,SUITS,tileName,sorted,counts,createGame,recommendSwap,recommendQue,swapTiles,setQue,observe,analyze,shanten,legalDiscards,selfActions,selfAction,discard,resolveResponse,aiStep,scoreHand,isWinning,assertGame,isCompatibleVersion,restoreGame,refreshDecision,normalizeRules,modeName,meldTiles,isQueTile,clearQue,waits } from './engine.js?v=0.6.0';
+import {variantPicker,variantHint,claimLabel,selfLabel,meldCaption} from './variants-ui.js?v=0.6.0';
+import {botPicker,readBotPicker,botRoster,botStyleName} from './bots-ui.js?v=0.6.0';
 
-import {icon,PAGE_TITLES,pageFromHash,renderSidebar,renderHeader,renderFooter} from './ui-shell.js?v=0.5.0';
-import {challengeController} from './challenge-ui.js?v=0.5.0';
+import {icon,PAGE_TITLES,pageFromHash,renderSidebar,renderHeader,renderFooter} from './ui-shell.js?v=0.6.0';
+import {challengeController} from './challenge-ui.js?v=0.6.0';
 
-import {renderDiscardArena,renderMeldBadges} from './table-ui.js?v=0.5.0';
-import {tileFace as tileSVG} from './tile-faces.js?v=0.5.0';
+import {renderDiscardArena,renderMeldBadges} from './table-ui.js?v=0.6.0';
+import {tileFace as tileSVG} from './tile-faces.js?v=0.6.0';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const btn=(label,action,cls='',disabled=false)=>`<button type="button" class="button ${cls}" data-action="${action}" ${disabled?'disabled':''}>${label}</button>`;
@@ -22,6 +23,7 @@ try{const saved=JSON.parse(localStorage.getItem(KEY));game=isCompatibleVersion(s
 if(!game)game=createGame();
 let page=pageFromHash(location.hash),selected=[],speed=650,paused=false,sound=false,timer,toastTimer,reviewIndex=0,reviewSeed=null,settledSeed=null,trainIndex=0,trainChoice=null;
 const challengeUI=challengeController({render,notice:toast});
+const emotes=createEmoteController({send:id=>{emotes.receive(emotes.localEvent(id));return true;},notice:toast});
 let analysisCache={key:'',data:[]};
 function save(){try{localStorage.setItem(KEY,JSON.stringify(game));localStorage.setItem(ARCHIVE,JSON.stringify(archive.slice(0,3)));}catch{toast('本机存储已满，可先导出牌谱再清理历史。');}}
 function toast(message){$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),3300);}
@@ -42,6 +44,7 @@ function render(){
   refreshDecision(game);document.title=PAGE_TITLES[page]+' · 听川';
   const controls=`<button type="button" class="iconbutton" data-action="sound" title="${sound?'关闭':'开启'}音效" aria-label="${sound?'关闭':'开启'}音效">${icon(sound?'sound':'mute')}</button><button type="button" class="iconbutton" data-action="help" aria-label="操作帮助">${icon('help')}</button><span class="iconbutton user-avatar" title="本地玩家">研</span>`;
   $('#app').innerHTML=`<div class="shell">${renderSidebar(page)}<main class="main">${renderHeader(page,controls)}<div class="content">${page==='live'?livePage():page==='challenge'?challengeUI.page():page==='review'?reviewPage():page==='train'?trainPage():rulesPage()}${renderFooter()}</div></main></div>`;
+  emotes.mount(page==='live'?$('.mahjong-table'):null,{viewer:0,names:game.players.map(p=>p.name)});
   if(page==='live')schedule();
 }
 function intro(eyebrow,title,desc,actions=''){return `<section class="intro"><div><div class="eyebrow">${eyebrow}</div><h1>${title}</h1><p>${desc}</p></div><div class="intro-actions">${actions}</div></section>`;}
@@ -55,9 +58,9 @@ function livePage(){
 }
 function board(g,{review=false,highlight=null}={}){
   const own=g.players[0],rules=normalizeRules(g.rules);
-  const opponent=(s,pos)=>{const p=g.players[s];return `<div class="opponent ${pos}"><div class="avatar ${!review&&g.turn===s&&g.phase==='discard'?'active':''} ${p.won?'won':''}">${p.won?'胡':p.name[0]}</div><div><div class="playername">${p.name} <span class="opponent-score">${p.score>0?'+':''}${p.score}</span></div><div class="playerdetail">${p.que<0?'待定缺':'缺'+SUITS[p.que]}${p.won?' · 已胡':' · '+botStyleName(g.botStyles?.[s])}</div>${renderMeldBadges(p.melds,t=>tile(t))}</div></div>`;};
+  const opponent=(s,pos)=>{const p=g.players[s];return `<div class="opponent ${pos}" data-emote-seat="${s}"><div class="avatar ${!review&&g.turn===s&&g.phase==='discard'?'active':''} ${p.won?'won':''}">${p.won?'胡':p.name[0]}</div><div><div class="playername">${p.name} <span class="opponent-score">${p.score>0?'+':''}${p.score}</span></div><div class="playerdetail">${p.que<0?'待定缺':'缺'+SUITS[p.que]}${p.won?' · 已胡':' · '+botStyleName(g.botStyles?.[s])}</div>${renderMeldBadges(p.melds,t=>tile(t))}</div></div>`;};
   const arena=renderDiscardArena({players:g.players,remaining:g.wall.length,last:g.last,turn:g.turn,phase:g.phase},0,t=>tile(t,{joker:rules.joker&&t===18}));
-  return `<div class="felt mahjong-table ${review?'is-review':''}" data-phase="${g.phase}"><span class="felt-corner">${review?'出牌前局面':'东家坐庄'} · ${g.phase==='swap'?'换三张':g.phase==='que'?'定缺':'血战到底'}</span>${opponent(2,'top')}${opponent(3,'left')}${opponent(1,'right')}<div class="backs" aria-label="对家暗手">${Array.from({length:Math.min(g.players[2].hand.length,13)},()=>'<span class="tileback"></span>').join('')}</div>${arena}<div class="own-zone"><div class="own-info"><div class="own-player"><span class="avatar ${!review&&g.turn===0&&g.phase==='discard'?'active':''}">${own.won?'胡':'你'}</span><span>研习者</span><span class="smalltag">${own.que<0?'尚未定缺':'定缺 · '+SUITS[own.que]}</span></div><span class="own-state">${review?'按当时信息进行牌效分析':own.won?'你已胡牌，可继续观察本局':g.phase==='swap'?`同色三张 · ${['','顺时针','对家','逆时针'][g.swapDirection]}交换`:g.phase==='que'?'选择一门花色作为定缺':g.phase==='discard'&&g.turn===0?shantenText(playerShanten(own,rules)):''}</span></div>${review?'':liveActions()}${own.melds.length?`<div class="melds">${own.melds.map(m=>`<div class="meld">${meldTiles(m).map(t=>tile(t,{joker:rules.joker&&t===18})).join('')}<small class="meld-caption">${meldCaption(m)}</small></div>`).join('')}</div>`:''}<div class="hand">${own.hand.map((t,i)=>tile(t,{index:!review&&(g.phase==='swap'||g.phase==='discard'&&g.turn===0&&!own.won&&legalDiscards(g,0).includes(t))?i:undefined,selected:!review&&selected.includes(i),forced:isQueTile(t,own.que,rules),joker:rules.joker&&t===18,suggested:review&&t===highlight})).join('')}</div></div>${!review&&paused?`<div class="paused-overlay"><span>歇一歇，再落牌。</span>${btn(icon('play')+'继续对局','pause','gold')}</div>`:''}<span class="session-marker">${review?'REVIEW · PLAYER INFORMATION ONLY':modeName(rules)+' / 自摸加番 / 五番满'}</span></div>`;
+  return `<div class="felt mahjong-table ${review?'is-review':''}" data-phase="${g.phase}"><span class="felt-corner">${review?'出牌前局面':'东家坐庄'} · ${g.phase==='swap'?'换三张':g.phase==='que'?'定缺':'血战到底'}</span>${opponent(2,'top')}${opponent(3,'left')}${opponent(1,'right')}<div class="backs" aria-label="对家暗手">${Array.from({length:Math.min(g.players[2].hand.length,13)},()=>'<span class="tileback"></span>').join('')}</div>${arena}${review?'':emotes.layer()}<div class="own-zone"><div class="own-info"><div class="own-player" data-emote-seat="0"><span class="avatar ${!review&&g.turn===0&&g.phase==='discard'?'active':''}">${own.won?'胡':'你'}</span><span>研习者</span><span class="smalltag">${own.que<0?'尚未定缺':'定缺 · '+SUITS[own.que]}</span></div>${review?'':emotes.controls()}<span class="own-state">${review?'按当时信息进行牌效分析':own.won?'你已胡牌，可继续观察本局':g.phase==='swap'?`同色三张 · ${['','顺时针','对家','逆时针'][g.swapDirection]}交换`:g.phase==='que'?'选择一门花色作为定缺':g.phase==='discard'&&g.turn===0?shantenText(playerShanten(own,rules)):''}</span></div>${review?'':liveActions()}${own.melds.length?`<div class="melds">${own.melds.map(m=>`<div class="meld">${meldTiles(m).map(t=>tile(t,{joker:rules.joker&&t===18})).join('')}<small class="meld-caption">${meldCaption(m)}</small></div>`).join('')}</div>`:''}<div class="hand">${own.hand.map((t,i)=>tile(t,{index:!review&&(g.phase==='swap'||g.phase==='discard'&&g.turn===0&&!own.won&&legalDiscards(g,0).includes(t))?i:undefined,selected:!review&&selected.includes(i),forced:isQueTile(t,own.que,rules),joker:rules.joker&&t===18,suggested:review&&t===highlight})).join('')}</div></div>${!review&&paused?`<div class="paused-overlay"><span>歇一歇，再落牌。</span>${btn(icon('play')+'继续对局','pause','gold')}</div>`:''}<span class="session-marker">${review?'REVIEW · PLAYER INFORMATION ONLY':modeName(rules)+' / 自摸加番 / 五番满'}</span></div>`;
 }
 function liveActions(){
   const p=game.players[0];let text='',sub='',buttons='';
@@ -125,8 +128,8 @@ function schedule(){
 }
 function checkEnd(){if(game.phase==='ended'){storeArchive(game);if(settledSeed!==game.seed&&page==='live'){settledSeed=game.seed;settlement();}}}
 function act(fn){try{clearTimeout(timer);fn();selected=[];playSound();assertGame(game);save();render();checkEnd();}catch(e){toast(e.message);schedule();}}
-function changePage(id,syncUrl=true){if(id==='challenge')challengeUI.sync();clearTimeout(timer);page=id;selected=[];if(syncUrl){const hash=id==='live'?'':'#'+id;if(location.hash!==hash)history.pushState(null,'',location.pathname+location.search+hash);}if(id==='review')reviewIndex=Math.min(reviewIndex,Math.max(0,getReviewGame().events.filter(e=>e.review).length-1));render();window.scrollTo({top:0,behavior:'instant'});}
-function openModal(title,body){clearTimeout(timer);$('#modal-root').innerHTML=`<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-head"><h2>${title}</h2><button type="button" class="iconbutton" data-action="close-modal" aria-label="关闭弹窗">${icon('close')}</button></div><div class="modal-body">${body}</div></section></div>`;setTimeout(()=>$('#modal-root button')?.focus(),0);}
+function changePage(id,syncUrl=true){emotes.clear();if(id==='challenge')challengeUI.sync();clearTimeout(timer);page=id;selected=[];if(syncUrl){const hash=id==='live'?'':'#'+id;if(location.hash!==hash)history.pushState(null,'',location.pathname+location.search+hash);}if(id==='review')reviewIndex=Math.min(reviewIndex,Math.max(0,getReviewGame().events.filter(e=>e.review).length-1));render();window.scrollTo({top:0,behavior:'instant'});}
+function openModal(title,body){emotes.clear();clearTimeout(timer);$('#modal-root').innerHTML=`<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-head"><h2>${title}</h2><button type="button" class="iconbutton" data-action="close-modal" aria-label="关闭弹窗">${icon('close')}</button></div><div class="modal-body">${body}</div></section></div>`;setTimeout(()=>$('#modal-root button')?.focus(),0);}
 function closeModal(){ $('#modal-root').innerHTML='';schedule();}
 function settlement(){
   const players=[...game.players].sort((a,b)=>b.score-a.score);
@@ -135,9 +138,10 @@ function settlement(){
 function exportGame(g){const payload={format:'tingchuan-replay',version:VERSION,exportedAt:new Date().toISOString(),rules:normalizeRules(g.rules),game:g};const blob=new Blob([JSON.stringify(payload)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`听川-牌谱-${g.seed}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('牌谱已导出，可以在复盘页重新导入。');}
 function importModal(){openModal('带回一份牌谱。',`<p>支持听川 v0.1.0 至 v${VERSION} 导出的 JSON 牌谱。导入后保留当前对局，在复盘页打开。</p><input type="file" id="replay-file" accept=".json,application/json" aria-label="选择牌谱文件"><div class="disclaimer">本地完整牌谱用于离线复盘；好友房的个人复盘可在联机对局结算后查看。</div>`);}
 function newGame(){openModal('选择本局玩法与电脑性格',`<p>选择麻将玩法和开局方式。当前牌局会保留在历史中，方便复盘。</p>${variantPicker(normalizeRules(game.rules))}${botPicker(game.botStyles,{names:game.players.map(p=>p.name)})}<div class="modal-actions">${btn('返回当前局','close-modal')}${btn('开始新局','confirm-new','primary')}</div>`);}
-function startNew(){storeArchive(game);game=createGame(undefined,null,{...($('#variant-joker')?{joker:$('#variant-joker').value==='true',swap:$('#variant-swap').value==='true'}:game.rules),botStyles:readBotPicker(document,game.botStyles)});selected=[];paused=false;settledSeed=null;reviewSeed=null;reviewIndex=0;analysisCache={key:'',data:[]};closeModal();save();changePage('live');}
+function startNew(){emotes.clear();storeArchive(game);game=createGame(undefined,null,{...($('#variant-joker')?{joker:$('#variant-joker').value==='true',swap:$('#variant-swap').value==='true'}:game.rules),botStyles:readBotPicker(document,game.botStyles)});selected=[];paused=false;settledSeed=null;reviewSeed=null;reviewIndex=0;analysisCache={key:'',data:[]};closeModal();save();changePage('live');}
 
 document.addEventListener('click',e=>{
+  if(emotes.handle(e))return;
   const challengeAction=e.target.closest('[data-challenge]')?.dataset.challenge;if(challengeAction){challengeUI.handle(challengeAction);return;}
   const nav=e.target.closest('[data-page]');if(nav){if(nav.tagName==='A'){if(e.button!==0||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;e.preventDefault();}changePage(nav.dataset.page);return;}
   const ri=e.target.closest('[data-review-index]');if(ri){reviewIndex=Number(ri.dataset.reviewIndex);render();return;}
@@ -173,7 +177,7 @@ document.addEventListener('click',e=>{
   else if(action==='help')openModal('慢慢打，慢慢懂。',`<p>① 换三张：点击同一花色的三张牌，再确认。<br>② 定缺：选择本局优先清完的花色。<br>③ 出牌：先点击手牌，再点“打出”或按 Enter。<br>④ 响应：出现可碰、杠、胡的牌时，选择操作或过。<br>⑤ 复盘：每次出牌都会记录，可随时到逐步复盘回看。</p><div class="disclaimer">当前是本地人机研习版本。牌效建议不包含防守风险与长期收益，电脑为基础牌效策略。对局自动保存在此浏览器，清理浏览器数据前请导出牌谱。</div><div class="modal-actions">${btn('开始研习','close-modal','primary')}</div>`);
 });
 document.addEventListener('change',async e=>{
-  if(e.target.matches('[data-bot-seat]')){const current=e.target.closest('label').querySelector('small');const info=await import('./bot-policy.js?v=0.5.0');if(current)current.textContent=info.BOT_STYLES[e.target.value]?.description||'';}
+  if(e.target.matches('[data-bot-seat]')){const current=e.target.closest('label').querySelector('small');const info=await import('./bot-policy.js?v=0.6.0');if(current)current.textContent=info.BOT_STYLES[e.target.value]?.description||'';}
   if(e.target.id==='variant-joker')$('.variant-hint').textContent=e.target.value==='true'?variantHint:'血战到底，自摸加番，五番封顶。两种开局方式都保留定缺。';
   if(e.target.id==='speed'){speed=Number(e.target.value);schedule();}
   if(e.target.id==='review-source'){reviewSeed=Number(e.target.value);reviewIndex=0;render();}
@@ -197,6 +201,7 @@ function validateImportedGame(g){
 }
 document.addEventListener('input',e=>{if(e.target.id==='review-range'){reviewIndex=Number(e.target.value);render();}});
 document.addEventListener('keydown',e=>{
+  if(emotes.keydown(e))return;
   if(e.key==='Escape'){if($('#modal-root').children.length)closeModal();else{selected=[];render();}}
   if(e.key==='Enter'&&!e.target.closest('a,input,select,textarea,button:not([data-tile-index])')&&page==='live'&&!$('#modal-root').children.length&&!paused&&selected.length===1&&game.phase==='discard'&&game.turn===0){e.preventDefault();act(()=>discard(game,game.players[0].hand[selected[0]]));}
   if(e.key==='Tab'&&$('#modal-root').children.length){const focusable=[...$('#modal-root').querySelectorAll('button,input,select,a')].filter(el=>!el.disabled);const first=focusable[0],last=focusable.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}
