@@ -1,4 +1,5 @@
 import {VERSION,RULES,normalizeRules,createGame,recommendSwap,recommendQue,exchangeTiles,setAllQue,legalDiscards,selfActions,chooseSelfAction,selfAction,discard,responseActions,chooseResponse,resolveResponses,analyze,observe,assertGame} from '../../source/cmtxs/engine.js';
+import {newMatch,matchRounds,matchComplete,recordRound,matchView} from './match.js';
 
 export const PROTOCOL=1;
 const copy=x=>structuredClone(x);
@@ -13,6 +14,9 @@ export class Room {
     this.d=data?copy(data):{protocol:PROTOCOL,code:'',created:now(),updated:now(),expires:now()+86400000,revision:0,decision:0,members:Array(4).fill(null),game:null,submissions:{},deadline:null,botAt:null,reviews:[],recent:[]};
     this.d.admissions??=[];
     this.d.rules=normalizeRules(this.d.rules);
+    this.d.roundId??=this.d.game?1:0;
+    this.d.match??=newMatch();this.d.matchArchive??=[];
+    if(this.d.game){this.d.match.started=true;recordRound(this.d.match,this.d.game,this.d.roundId);}
   }
   admission(requestId){
     if(requestId==null)return null;
@@ -46,6 +50,7 @@ export class Room {
     return responseActions(g,seat).length>0&&!Object.hasOwn(this.d.submissions,seat);
   }
   newDecision(){
+    recordRound(this.d.match,this.d.game,this.d.roundId);
     this.d.decision++;this.d.submissions={};this.d.deadline=this.now()+this.timeout;this.d.botAt=null;
     const g=this.d.game;if(!g||g.phase==='ended'){this.d.deadline=null;return;}
     for(let s=0;s<4;s++)if(!this.d.members[s]||this.d.members[s].auto){
@@ -58,7 +63,7 @@ export class Room {
   collectLogs(){
     const g=this.d.game;if(!g)return;
     this.d.recent.push(...g.events.filter(e=>!['draw','swap','que'].includes(e.type)).map(e=>({type:e.type,text:e.text})));
-    this.d.recent=this.d.recent.slice(-12);g.events=[];assertGame(g);
+    this.d.recent=this.d.recent.slice(-12);g.events=[];assertGame(g);recordRound(this.d.match,g,this.d.roundId);
   }
   advance(){
     // Automatic transitions are bounded; discard decisions always get their own timer.
@@ -92,8 +97,22 @@ export class Room {
     if(!c||typeof c.id!=='string'||!/^[\w-]{1,80}$/.test(c.id))fail('操作编号无效');
     if(m.commands.includes(c.id))return {id:c.id,duplicate:true};
     const g=this.d.game;
-    if(c.action==='configure'){
+    if(c.action==='match-config'){
+      if(seat!==0)fail('只有房主可以修改赛制');
+      if(this.d.match.started||g)fail('本场已经开始，赛制已锁定');
+      if(!matchRounds(c.rounds))fail('赛制设置无效');
+      this.d.match=newMatch(c.rounds);this.d.members.forEach(p=>{if(p)p.ready=false;});
+    }else if(c.action==='new-match'){
+      if(seat!==0)fail('只有房主可以新开一场');
+      if(!g||g.phase!=='ended')fail('请先完成当前对局');
+      if(this.d.match.rounds&&!matchComplete(this.d.match))fail('请先打完本场比赛');
+      if(!matchRounds(c.rounds))fail('赛制设置无效');
+      this.d.matchArchive=[matchView(this.d.match),...this.d.matchArchive].slice(0,3);
+      this.d.match=newMatch(c.rounds);this.d.game=null;this.d.submissions={};this.d.deadline=null;this.d.botAt=null;this.d.reviews=[];this.d.recent=[];
+      this.d.members.forEach(p=>{if(p){p.ready=false;p.auto=false;}});this.d.decision++;
+    }else if(c.action==='configure'){
       if(seat!==0)fail('只有房主可以修改玩法');if(g&&g.phase!=='ended')fail('本局已开始，不能更改玩法');
+      if(this.d.match.rounds&&this.d.match.started&&!matchComplete(this.d.match))fail('比赛进行中，玩法已锁定');
       if(!c.rules||typeof c.rules.swap!=='boolean'||typeof c.rules.joker!=='boolean'||Object.keys(c.rules).some(k=>!['swap','joker'].includes(k)))fail('玩法设置无效');
       this.d.rules=normalizeRules(c.rules);this.d.members.forEach(p=>{if(p)p.ready=false;});
     }else if(c.action==='ready'){
@@ -101,6 +120,8 @@ export class Room {
     }else if(c.action==='start'){
       if(seat!==0)fail('只有房主可以开局');if(g&&g.phase!=='ended')fail('本局已开始');
       if(this.d.members.some(p=>p&&!p.ready))fail('请等待所有真人准备');
+      if(matchComplete(this.d.match))fail('本场已结束，请先新开一场');
+      this.d.roundId++;this.d.match.started=true;
       this.d.game=createGame(0,this.random,this.d.rules);this.d.game.reviewSeats=[];this.d.reviews=[];this.d.recent=[];
       this.d.members.forEach((p,s)=>{if(p){p.auto=false;p.ready=false;}this.d.game.players[s].name=p?.name||['竹隐','云岫','松风','清和'][s];});
       this.newDecision();this.advance();
@@ -146,7 +167,7 @@ export class Room {
   view(seat){
     const d=this.d,g=d.game,m=d.members[seat];
     const view={type:'state',protocol:PROTOCOL,version:VERSION,code:d.code,revision:d.revision,decision:d.decision,serverTime:this.now(),expires:d.expires,seat,host:0,rules:normalizeRules(g&&g.phase!=='ended'?g.rules:d.rules),deadline:d.deadline,phase:g?.phase||'lobby',pending:this.pending(seat),submitted:Object.hasOwn(d.submissions,seat),
-      members:d.members.map((p,s)=>p?{name:p.name,ready:p.ready,online:p.online,auto:p.auto,bot:false}:{name:['竹隐','云岫','松风','清和'][s],ready:true,online:true,auto:true,bot:true})};
+      members:d.members.map((p,s)=>p?{name:p.name,ready:p.ready,online:p.online,auto:p.auto,bot:false}:{name:['竹隐','云岫','松风','清和'][s],ready:true,online:true,auto:true,bot:true}),match:matchView(d.match),matchArchive:copy(d.matchArchive)};
     if(!g)return view;
     view.game={phase:g.phase,turn:g.turn,rules:normalizeRules(g.rules),remaining:g.wall.length,last:copy(g.last),swapDirection:g.swapDirection,winners:[...g.winners],
       players:g.players.map((p,s)=>({seat:s,name:p.name,handCount:p.hand.length,hand:s===seat||p.won||g.phase==='ended'?[...p.hand]:null,melds:copy(p.melds),discards:[...p.discards],que:g.phase==='que'?-1:p.que,won:p.won,score:p.score,win:p.win?copy(p.win):null,passedHuFan:s===seat?p.passedHuFan:undefined})),ledger:copy(g.ledger),recent:copy(d.recent)};
