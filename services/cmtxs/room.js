@@ -1,4 +1,5 @@
-import {VERSION,RULES,normalizeRules,createGame,recommendSwap,recommendQue,exchangeTiles,setAllQue,legalDiscards,selfActions,chooseSelfAction,selfAction,discard,responseActions,chooseResponse,resolveResponses,analyze,observe,assertGame} from '../../source/cmtxs/engine.js';
+import {VERSION,RULES,normalizeRules,createGame,recommendSwap,recommendQue,exchangeTiles,setAllQue,legalDiscards,selfActions,chooseSelfAction,selfAction,chooseDiscard,discard,responseActions,chooseResponse,resolveResponses,analyze,observe,assertGame} from '../../source/cmtxs/engine.js';
+import {DEFAULT_BOT_STYLES,isBotStyle,normalizeBotStyles} from '../../source/cmtxs/bot-policy.js';
 import {newMatch,matchRounds,matchComplete,recordRound,matchView} from './match.js';
 
 export const PROTOCOL=1;
@@ -16,6 +17,7 @@ export class Room {
     this.d.rules=normalizeRules(this.d.rules);
     this.d.roundId??=this.d.game?1:0;
     this.d.match??=newMatch();this.d.matchArchive??=[];
+    this.d.botStyles=normalizeBotStyles(this.d.botStyles??this.d.game?.botStyles,data?Array(4).fill('balanced'):DEFAULT_BOT_STYLES);
     if(this.d.game){this.d.match.started=true;recordRound(this.d.match,this.d.game,this.d.roundId);}
   }
   admission(requestId){
@@ -40,6 +42,7 @@ export class Room {
     if(this.d.game)fail('对局已开始，只能由原玩家重连');
     const seat=this.d.members.findIndex(m=>!m);if(seat<0)fail('房间已满');
     const token=secret();this.d.members[seat]={name:cleanName(name),token,ready:false,online:false,auto:false,commands:[]};
+    this.d.botStyles[seat]='balanced';
     if(requestId)this.d.admissions.push({id:requestId,seat});this.bump();return this.credential(seat);
   }
   presence(seat,online){const m=this.d.members[seat];if(!m)return;if(m.online!==online){m.online=online;this.bump();}}
@@ -88,7 +91,7 @@ export class Room {
     else if(g.phase==='respond')this.d.submissions[seat]=chooseResponse(g,seat);
     else if(g.phase==='discard'){
       const a=chooseSelfAction(g,seat);
-      if(a)selfAction(g,a.type,a.tile,seat,a.jokers??0);else this.playDiscard(seat,analyze(observe(g,seat))[0].tile);
+      if(a)selfAction(g,a.type,a.tile,seat,a.jokers??0);else this.playDiscard(seat,chooseDiscard(g,seat));
       this.collectLogs();this.newDecision();
     }
   }
@@ -97,7 +100,14 @@ export class Room {
     if(!c||typeof c.id!=='string'||!/^[\w-]{1,80}$/.test(c.id))fail('操作编号无效');
     if(m.commands.includes(c.id))return {id:c.id,duplicate:true};
     const g=this.d.game;
-    if(c.action==='match-config'){
+    if(c.action==='bot-config'){
+      if(seat!==0)fail('只有房主可以选择电脑性格');
+      if(g&&g.phase!=='ended')fail('本局已开始，电脑性格已锁定');
+      if(this.d.match.rounds&&this.d.match.started&&!matchComplete(this.d.match))fail('比赛进行中，电脑性格已锁定');
+      if(!Array.isArray(c.botStyles)||c.botStyles.length!==4||!c.botStyles.every(isBotStyle))fail('电脑性格设置无效');
+      if(this.d.members.some((p,s)=>p&&c.botStyles[s]!=='balanced'))fail('真人托管固定使用均衡型');
+      this.d.botStyles=[...c.botStyles];this.d.members.forEach(p=>{if(p)p.ready=false;});
+    }else if(c.action==='match-config'){
       if(seat!==0)fail('只有房主可以修改赛制');
       if(this.d.match.started||g)fail('本场已经开始，赛制已锁定');
       if(!matchRounds(c.rounds))fail('赛制设置无效');
@@ -122,7 +132,7 @@ export class Room {
       if(this.d.members.some(p=>p&&!p.ready))fail('请等待所有真人准备');
       if(matchComplete(this.d.match))fail('本场已结束，请先新开一场');
       this.d.roundId++;this.d.match.started=true;
-      this.d.game=createGame(0,this.random,this.d.rules);this.d.game.reviewSeats=[];this.d.reviews=[];this.d.recent=[];
+      this.d.game=createGame(0,this.random,{...this.d.rules,botStyles:this.d.botStyles.map((id,s)=>this.d.members[s]?'balanced':id)});this.d.game.reviewSeats=[];this.d.reviews=[];this.d.recent=[];
       this.d.members.forEach((p,s)=>{if(p){p.auto=false;p.ready=false;}this.d.game.players[s].name=p?.name||['竹隐','云岫','松风','清和'][s];});
       this.newDecision();this.advance();
     }else if(c.action==='auto'){
@@ -167,9 +177,9 @@ export class Room {
   view(seat){
     const d=this.d,g=d.game,m=d.members[seat];
     const view={type:'state',protocol:PROTOCOL,version:VERSION,code:d.code,revision:d.revision,decision:d.decision,serverTime:this.now(),expires:d.expires,seat,host:0,rules:normalizeRules(g&&g.phase!=='ended'?g.rules:d.rules),deadline:d.deadline,phase:g?.phase||'lobby',pending:this.pending(seat),submitted:Object.hasOwn(d.submissions,seat),
-      members:d.members.map((p,s)=>p?{name:p.name,ready:p.ready,online:p.online,auto:p.auto,bot:false}:{name:['竹隐','云岫','松风','清和'][s],ready:true,online:true,auto:true,bot:true}),match:matchView(d.match),matchArchive:copy(d.matchArchive)};
+      botStyles:[...d.botStyles],members:d.members.map((p,s)=>p?{name:p.name,ready:p.ready,online:p.online,auto:p.auto,bot:false}:{name:['竹隐','云岫','松风','清和'][s],style:d.botStyles[s],ready:true,online:true,auto:true,bot:true}),match:matchView(d.match),matchArchive:copy(d.matchArchive)};
     if(!g)return view;
-    view.game={phase:g.phase,turn:g.turn,rules:normalizeRules(g.rules),remaining:g.wall.length,last:copy(g.last),swapDirection:g.swapDirection,winners:[...g.winners],
+    view.game={phase:g.phase,turn:g.turn,rules:normalizeRules(g.rules),botStyles:normalizeBotStyles(g.botStyles,Array(4).fill('balanced')),remaining:g.wall.length,last:copy(g.last),swapDirection:g.swapDirection,winners:[...g.winners],
       players:g.players.map((p,s)=>({seat:s,name:p.name,handCount:p.hand.length,hand:s===seat||p.won||g.phase==='ended'?[...p.hand]:null,melds:copy(p.melds),discards:[...p.discards],que:g.phase==='que'?-1:p.que,won:p.won,score:p.score,win:p.win?copy(p.win):null,passedHuFan:s===seat?p.passedHuFan:undefined})),ledger:copy(g.ledger),recent:copy(d.recent)};
     view.options={discards:g.phase==='discard'&&g.turn===seat?legalDiscards(g,seat):[],self:selfActions(g,seat),responses:responseActions(g,seat)};
     // The hand history contains only this seat's observations, released after settlement.

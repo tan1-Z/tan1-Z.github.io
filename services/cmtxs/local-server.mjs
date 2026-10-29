@@ -16,7 +16,7 @@ export async function startServer({port=4173,dataDir=null,timeout=30000,botDelay
     const send=(status,body)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(body));};
     try{
       const u=new URL(req.url,'http://localhost');
-      if(req.method==='GET'&&u.pathname==='/health')return send(200,{ok:true,protocol:1,version:'0.3.0'});
+      if(req.method==='GET'&&u.pathname==='/health')return send(200,{ok:true,protocol:1,version:'0.5.0',features:['match-v1','bot-personalities-v1']});
       if(req.method==='POST'){
         let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)return send(413,{error:'请求过大'});}
         const body=JSON.parse(raw),m=u.pathname.match(/^\/rooms\/([A-Z2-9]{8})\/join$/);let r,credential;

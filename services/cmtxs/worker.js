@@ -11,7 +11,7 @@ export default {
   async fetch(request,env){
     if(!allowed(request,env))return json({error:'来源不允许'},403);
     if(request.method==='OPTIONS')return cors(new Response(null,{status:204}),request);
-    const u=new URL(request.url);if(u.pathname==='/health')return cors(json({ok:true,protocol:1,version:'0.3.0',features:['match-v1']}),request);
+    const u=new URL(request.url);if(u.pathname==='/health')return cors(json({ok:true,protocol:1,version:'0.5.0',features:['match-v1','bot-personalities-v1']}),request);
     let response;
     try{
       if(u.pathname==='/rooms'&&request.method==='POST'){
