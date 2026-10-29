@@ -23,15 +23,16 @@ const icons={
   check:'<path d="m5 12 4 4L20 5"/>',
 };
 export const icon=(name)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name]||icons.info}</svg>`;
-export const PAGE_TITLES=Object.freeze({live:'人机练习',rooms:'好友开房',review:'逐步复盘',train:'何切训练',rules:'规则手册'});
+export const PAGE_TITLES=Object.freeze({live:'人机练习',rooms:'好友开房',challenge:'残局挑战',review:'逐步复盘',train:'何切训练',rules:'规则手册'});
 export const NAV_ITEMS=Object.freeze([
   {id:'live',icon:'table',label:PAGE_TITLES.live,href:'./'},
   {id:'rooms',icon:'users',label:PAGE_TITLES.rooms,href:'./rooms.html'},
+  {id:'challenge',icon:'spark',label:PAGE_TITLES.challenge,href:'./#challenge'},
   {id:'review',icon:'review',label:PAGE_TITLES.review,href:'./#review'},
   {id:'train',icon:'train',label:PAGE_TITLES.train,href:'./#train'},
   {id:'rules',icon:'rules',label:PAGE_TITLES.rules,href:'./#rules'},
 ]);
-export function pageFromHash(hash){const id=String(hash||'').replace(/^#/,'');return ['live','review','train','rules'].includes(id)?id:'live';}
+export function pageFromHash(hash){const id=String(hash||'').replace(/^#/,'');return ['live','challenge','review','train','rules'].includes(id)?id:'live';}
 export function renderSidebar(page='live',context='local'){
   const links=NAV_ITEMS.map(item=>`<a class="navbutton ${page===item.id?'active':''}" href="${item.href}" ${item.id==='rooms'?'':`data-page="${item.id}"`} ${page===item.id?'aria-current="page"':''}>${icon(item.icon)}<span>${item.label}</span></a>`).join('');
   return `<aside class="sidebar"><a class="brand" href="./" data-page="live" aria-label="听川首页"><div class="brandmark">听</div><div><div class="brandname">听川</div><div class="brandlatin">TINGCHUAN</div></div></a><div class="navlabel">川 麻 研 习 室</div><nav class="nav" aria-label="主导航">${links}</nav><div class="sidebar-note"><div class="line"></div>一张一弛，<br>慢慢听见牌的答案。</div><div class="sidebar-foot"><span><i class="statusdot"></i>${context==='online'?'好友房':'本地研习'}</span><span>v${VERSION}</span></div></aside>`;
