@@ -50,8 +50,8 @@ html {
 body {
   background: #fff !important;
   color: var(--wow-text);
-  font-family: "Comic Sans MS", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", cursive, sans-serif;
-  font-style: italic;
+  font-family: Arial, "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  font-style: normal;
   font-size: 15px;
   line-height: 1.6;
 }
@@ -555,7 +555,7 @@ a:hover,
 
 #article-container .paper-venue {
   color: #333;
-  font-style: italic;
+  font-style: normal;
   font-weight: 700;
 }
 
