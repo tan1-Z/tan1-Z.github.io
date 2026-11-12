@@ -66,7 +66,7 @@ comments: false
 <section class="wowpage-section" id="educations">
 <h2 class="academic-heading">Education</h2>
 <div class="timeline-item academic-education">
-<span class="education-icon"><i class="fas fa-university" aria-hidden="true"></i></span>
+<span class="education-icon"><img src="/img/academic/uestc-emblem.png" alt="University of Electronic Science and Technology of China emblem" width="40" height="40"></span>
 <div>
 <strong>University of Electronic Science and Technology of China</strong>
 <span>Undergraduate Student, School of Information and Software Engineering</span>

@@ -239,7 +239,8 @@ body:has(.academic-home) #menus .site-page:is(:hover, [aria-current])::after { w
 .academic-home .paper-actions :is(a, button):hover { background: #f5f6fa; border-color: #aeb5d5; }
 .academic-home .paper-actions .citation-button { width: 32px; padding: 0; }
 .academic-home .academic-education { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 15px; padding: 4px 0 24px; border-bottom: 1px solid #edeef3; }
-.education-icon { display: grid; place-items: center; width: 40px; height: 40px; background: #f5f6fa; border-radius: 6px; color: #8b94c5; font-size: 18px; }
+.education-icon { display: grid; place-items: center; width: 40px; height: 40px; background: transparent; }
+.education-icon img { display: block; width: 40px; height: 40px; margin: 0 !important; border-radius: 0; object-fit: contain; }
 .academic-education > div { display: grid; gap: 5px; }
 .academic-home .academic-education strong { font-size: 16px; color: #444753; }
 .academic-home .academic-education span:not(.education-icon) { font-size: 14px; color: #797c88; }
