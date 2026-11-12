@@ -71,10 +71,10 @@ body:has(.academic-home) #menus .site-page:is(:hover, [aria-current])::after { w
 .academic-home .wowpage-avatar {
   width: 184px;
   height: auto;
-  max-height: 220px;
-  aspect-ratio: 1024 / 1181;
+  max-height: none;
+  aspect-ratio: 4 / 5;
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: 0;
   margin: 0 auto 20px;
   background: transparent;
 }

@@ -9,7 +9,7 @@ comments: false
 
 <div class="wowpage-home academic-home" id="home">
 <aside class="wowpage-sidebar" aria-label="Profile">
-<img class="wowpage-avatar" src="/img/academic/avatar.jpg" alt="Pei Tan">
+<img class="wowpage-avatar" src="/img/academic/portrait-mahjong-illustration.png" alt="Hand-painted portrait of Pei Tan holding a mahjong tile" width="184" height="230">
 <h1>Pei Tan</h1>
 <p class="profile-role">Undergraduate Student</p>
 <p class="profile-affiliation">University of Electronic Science<br>and Technology of China</p>
